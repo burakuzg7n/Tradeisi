@@ -90,16 +90,39 @@ def test_htf_bias_has_no_lookahead():
 def test_run_period_uses_warmup_but_only_period_orders():
     ltf = synthetic_trend_df(n=6000, seed=7)
     htf = _htf_from(ltf)
-    start = ltf.index[2000]
-    res, info = P.run_period(ltf, htf, start.isoformat(), ltf.index[4800], SP, BacktestParams())
+    start, end = ltf.index[2000], ltf.index[4800]
+    res, info = P.run_period(ltf, htf, start.isoformat(), end, SP, BacktestParams())
     assert info["period_first_bar"] == str(start)
-    assert info["orders_in_period"] <= info["orders_total_incl_warmup"]
     # dönem sonrası veri kullanılmaz: son bar end'den önce
-    assert pd.Timestamp(info["period_last_bar"]) < ltf.index[4800]
-    # kesilmiş veriyle aynı emirler (kesme gerçekten uygulandı)
-    cut_orders = generate_orders_v2(ltf[ltf.index < ltf.index[4800]],
-                                    htf[htf.index < ltf.index[4800]], SP)
-    assert info["orders_total_incl_warmup"] == len(cut_orders)
+    assert pd.Timestamp(info["period_last_bar"]) < end
+    # kesilmiş veri + dönem başı = aynı emir kümesi (kesme ve E3c durum sıfırlama uygulandı)
+    ltf_c, htf_c = ltf[ltf.index < end], htf[htf.index < end]
+    want = generate_orders_v2(ltf_c, htf_c, SP, trade_from_idx=2000)
+    assert info["orders_generated"] == len(want) == info["orders_in_period"]
+    assert all(o.created_idx >= 2000 for o in want)
+    # ısınma gerçekten kullanılıyor: dönem başında sıfırdan başlayan veriyle FARKLI olabilir
+    cold = generate_orders_v2(ltf_c.iloc[2000:], htf_c, SP)
+    assert isinstance(cold, list)
+
+
+def test_period_start_resets_setup_state_no_carryover():
+    """E3c: dönem öncesi barlar yalnız gösterge ısınması. Sweep'i dönem ÖNCESİNDE olan
+    setup'tan doğan emir dönem içinde alınmamalı."""
+    ltf = synthetic_trend_df(n=6000, seed=7)
+    htf = _htf_from(ltf)
+    full = generate_orders_v2(ltf, htf, SP)
+    carried = [o for o in full if o.meta["sweep_idx"] < o.created_idx - 1]
+    assert carried, "sweep'i emirden önce olan emir bulunmalı; test anlamsız kalmasın"
+    o = carried[0]
+    start = o.meta["sweep_idx"] + 1
+    part = generate_orders_v2(ltf, htf, SP, trade_from_idx=start)
+    assert all(x.meta["sweep_idx"] >= start for x in part), "dönem öncesi setup taşındı"
+    assert _sig(generate_orders_v2(ltf, htf, SP, trade_from_idx=0)) == _sig(full)
+    assert len(part) > 0                                # ısınma sonrası yine emir üretir
+    # run_period üzerinden de: işlemlerin sweep'i dönem içinde
+    res, info = P.run_period(ltf, htf, ltf.index[start].isoformat(), ltf.index[5000], SP,
+                             BacktestParams())
+    assert all(t.meta["sweep_idx"] >= start for t in res.trades)
 
 
 # ------------------------------------------------------------- tasfiye (E3b)
@@ -125,6 +148,20 @@ def test_liquidate_at_end_closes_open_position_with_costs():
     assert t.exit_price == pytest.approx(exit_px)
     assert t.pnl_usd == pytest.approx(pnl)
     assert float(r.equity_curve.iloc[-1]) == pytest.approx(10_000 + pnl)
+
+
+def test_liquidate_at_end_short_costs_are_exact():
+    bars = [(100, 101, 99, 100), (100, 101, 99, 100), (100, 101, 99, 99.5)]
+    o = _order(side="short", entry=100.0, stop=105.0, target=80.0)
+    bt = _bt_costly()
+    r = bt.run(make_df(bars), [o], liquidate_at_end=True)
+    assert len(r.trades) == 1 and r.forced_closes == 1
+    fill = 100 * 0.999
+    size = 10_000 * bt.p.risk_per_trade / (105 - fill)
+    exit_px = 99.5 * 1.001
+    pnl = (fill - exit_px) * size - fill * size * 0.001 - exit_px * size * 0.001
+    assert r.trades[0].exit_reason == "period_end"
+    assert r.trades[0].pnl_usd == pytest.approx(pnl)
 
 
 # ------------------------------------------------------------- birleşik metrikler (E3)
@@ -155,11 +192,14 @@ def test_combine_net_pf_and_dd_on_summed_equity():
 
 
 def test_combine_pads_late_starting_symbol_with_initial_balance():
-    a = _result([10], [10_000, 10_010, 10_010, 10_010])
+    a = _result([10], [10_000, 9_000, 10_000, 10_000])
     b = _result([0], [10_000, 10_000])
     b.equity_curve.index = a.equity_curve.index[2:]     # B ikinci yarıda başlar
     c = P.combine({"A": a, "B": b}, 10_000)
-    assert c["final_total"] == pytest.approx(20_010)
+    assert c["final_total"] == pytest.approx(20_000)
+    # erken dönem: toplam = A + 10.000 (B başlangıç bakiyesiyle doldurulur)
+    # → [20000, 19000, 20000, 20000], DD = 1000/20000 = %5. Yanlış dolgu (0) %10 verirdi.
+    assert c["max_drawdown"] == pytest.approx(0.05)
 
 
 def test_gate_boundaries_are_strict_as_spec():
@@ -192,62 +232,113 @@ def test_last_full_day_end_and_missing_bars():
 
 
 # ------------------------------------------------------------- TEK ATIŞ kilidi
-def test_single_shot_lock_and_holdout_gating(tmp_path):
+def _env(tmp_path, n=6000):
     data, rep = tmp_path / "data", tmp_path / "reports"
     data.mkdir()
-    _write_data(data)
-    kw = dict(data_dir=data, report_dir=rep, symbols=("AAA", "BBB"), periods=PER, sp=SP)
+    _write_data(data, n=n)
+    return data, rep, dict(data_dir=data, report_dir=rep, symbols=("AAA", "BBB"),
+                           periods=PER, sp=SP, _allow_custom=True)
 
+
+def _force(rep, **comb):
+    """Raporu (testte) 'geçti' ya da 'kaldı' gibi yeniden mühürle."""
+    ins = json.loads((rep / P.INSAMPLE_FILE).read_text(encoding="utf-8"))
+    ins["combined"].update(comb)
+    ok = P._recompute_pass(ins)
+    ins["gates_passed"], ins["verdict"] = ok, ("GEÇTİ" if ok else "KALDI")
+    (rep / P.INSAMPLE_FILE).write_text(json.dumps(P.seal(ins)), encoding="utf-8")
+    return ins
+
+
+PASS = dict(profit_factor=2.0, total_trades=200, max_drawdown=0.05)
+FAIL = dict(profit_factor=0.8, total_trades=200, max_drawdown=0.05)
+
+
+def test_single_shot_lock_and_holdout_gating(tmp_path):
+    data, rep, kw = _env(tmp_path)
     r = P.run_protocol("insample", **kw)
     assert (rep / P.INSAMPLE_FILE).exists() and (rep / "V2_INSAMPLE.md").exists()
+    assert (rep / "V2_INSAMPLE.lock").exists()
     assert r["period"]["end_exclusive"].startswith("2025-02-01")
-    json.loads((rep / P.INSAMPLE_FILE).read_text(encoding="utf-8"))   # geçerli JSON
-
+    assert P.verify_seal(json.loads((rep / P.INSAMPLE_FILE).read_text(encoding="utf-8")))
     with pytest.raises(P.ProtocolError, match="TEK ATIŞ"):
         P.run_protocol("insample", **kw)
 
-    # in-sample KALDI ise hold-out reddedilir
-    ins = json.loads((rep / P.INSAMPLE_FILE).read_text(encoding="utf-8"))
-    ins["gates_passed"] = False
-    (rep / P.INSAMPLE_FILE).write_text(json.dumps(ins), encoding="utf-8")
+    _force(rep, **FAIL)                                     # KALDI → hold-out reddedilir
     with pytest.raises(P.ProtocolError, match="REDDEDİLDİ"):
         P.run_protocol("holdout", **kw)
 
-    # GEÇTİ ama kod parmak izi farklıysa reddedilir
-    ins["gates_passed"] = True
-    ins["code_fingerprint"] = "0" * 64
-    (rep / P.INSAMPLE_FILE).write_text(json.dumps(ins), encoding="utf-8")
+    ins = _force(rep, **PASS)
+    ins["code_fingerprint"] = "0" * 64                      # kod değişmiş
+    (rep / P.INSAMPLE_FILE).write_text(json.dumps(P.seal(ins)), encoding="utf-8")
     with pytest.raises(P.ProtocolError, match="parmak izi"):
         P.run_protocol("holdout", **kw)
 
-    # her şey tutarlıysa hold-out koşar, sonra kilitlenir
+    ins = _force(rep, **PASS)
     ins["code_fingerprint"] = P.code_fingerprint()
-    (rep / P.INSAMPLE_FILE).write_text(json.dumps(ins), encoding="utf-8")
-    ho = P.run_protocol("holdout", **kw)
+    (rep / P.INSAMPLE_FILE).write_text(json.dumps(P.seal(ins)), encoding="utf-8")
+    ho = P.run_protocol("holdout", **kw)                    # her şey tutarlı: koşar
     assert ho["phase"] == "holdout" and ho["period"]["start"].startswith("2025-02-01")
-    assert (rep / P.HOLDOUT_FILE).exists()
+    assert P.verify_seal(ho)
     with pytest.raises(P.ProtocolError, match="TEK ATIŞ"):
         P.run_protocol("holdout", **kw)
 
 
+def _sealed_pass(rep):
+    ins = _force(rep, **PASS)
+    ins["code_fingerprint"] = P.code_fingerprint()
+    (rep / P.INSAMPLE_FILE).write_text(json.dumps(P.seal(ins)), encoding="utf-8")
+
+
 def test_holdout_requires_insample_first(tmp_path):
-    data = tmp_path / "data"
-    data.mkdir()
-    _write_data(data)
+    data, rep, kw = _env(tmp_path)
     with pytest.raises(P.ProtocolError, match="in-sample koşulmalı"):
-        P.run_protocol("holdout", data, tmp_path / "r", ("AAA", "BBB"), PER, SP)
+        P.run_protocol("holdout", **kw)
 
 
-def test_holdout_refuses_if_insample_data_slice_changed(tmp_path):
-    data, rep = tmp_path / "data", tmp_path / "reports"
-    data.mkdir()
-    _write_data(data)
-    kw = dict(data_dir=data, report_dir=rep, symbols=("AAA", "BBB"), periods=PER, sp=SP)
+def test_holdout_rejects_edited_report_without_reseal(tmp_path):
+    """gates_passed elle true yapılırsa (mühür bozulur) hold-out açılmaz."""
+    data, rep, kw = _env(tmp_path)
     P.run_protocol("insample", **kw)
     ins = json.loads((rep / P.INSAMPLE_FILE).read_text(encoding="utf-8"))
     ins["gates_passed"] = True
     (rep / P.INSAMPLE_FILE).write_text(json.dumps(ins), encoding="utf-8")
-    # in-sample dilimindeki veriyi değiştir
+    with pytest.raises(P.ProtocolError, match="bütünlük"):
+        P.run_protocol("holdout", **kw)
+
+
+def test_holdout_rejects_inconsistent_gates_even_if_resealed(tmp_path):
+    """Mühürlenmiş olsa bile kapılar yeniden hesaplanır: PF 0.8 iken 'true' kabul edilmez."""
+    data, rep, kw = _env(tmp_path)
+    P.run_protocol("insample", **kw)
+    ins = _force(rep, **FAIL)
+    ins["gates_passed"] = True                              # sahte
+    ins["code_fingerprint"] = P.code_fingerprint()
+    (rep / P.INSAMPLE_FILE).write_text(json.dumps(P.seal(ins)), encoding="utf-8")
+    with pytest.raises(P.ProtocolError, match="tutarsız"):
+        P.run_protocol("holdout", **kw)
+
+
+def test_holdout_rejects_changed_params_or_symbols(tmp_path):
+    data, rep, kw = _env(tmp_path)
+    P.run_protocol("insample", **kw)
+    _sealed_pass(rep)
+    with pytest.raises(P.ProtocolError, match="parametreleri"):
+        P.run_protocol("holdout", **{**kw, "sp": replace(SP, use_session_filter=True)})
+    with pytest.raises(P.ProtocolError, match="parametreleri"):
+        P.run_protocol("holdout", **{**kw, "bp": BacktestParams(taker_fee=0.0001)})
+    with pytest.raises(P.ProtocolError, match="parametreleri"):
+        P.run_protocol("holdout", **{**kw, "symbols": ("AAA",)})       # ETH'siz değerlendirme
+    with pytest.raises(P.ProtocolError, match="parametreleri"):
+        P.run_protocol("holdout", **{**kw, "periods": P.Periods(
+            insample_start="2025-01-01", insample_end_excl="2025-02-01",
+            holdout_start="2025-02-05")})
+
+
+def test_holdout_refuses_if_insample_data_slice_changed(tmp_path):
+    data, rep, kw = _env(tmp_path)
+    P.run_protocol("insample", **kw)
+    _sealed_pass(rep)
     other = synthetic_trend_df(n=6000, seed=99)
     save_csv(other, data / "AAA_15m.csv")
     save_csv(_htf_from(other), data / "AAA_4h.csv")
@@ -255,15 +346,50 @@ def test_holdout_refuses_if_insample_data_slice_changed(tmp_path):
         P.run_protocol("holdout", **kw)
 
 
-def test_missing_data_and_start_coverage_errors(tmp_path):
+def test_production_protocol_rejects_custom_parameters(tmp_path):
+    data, rep, kw = _env(tmp_path)
+    kw.pop("_allow_custom")
+    with pytest.raises(P.ProtocolError, match="SABİT"):
+        P.run_protocol("insample", **kw)
+    assert not (rep / "V2_INSAMPLE.lock").exists()          # reddedilen koşu kilit tüketmez
+
+
+def test_lock_taken_before_run_and_survives_crash(tmp_path, monkeypatch):
+    data, rep, kw = _env(tmp_path)
+    def boom(*a, **k):
+        raise RuntimeError("koşu ortasında çöktü")
+    monkeypatch.setattr(P, "run_period", boom)
+    with pytest.raises(RuntimeError):
+        P.run_protocol("insample", **kw)
+    assert (rep / "V2_INSAMPLE.lock").exists() and not (rep / P.INSAMPLE_FILE).exists()
+    monkeypatch.undo()
+    with pytest.raises(P.ProtocolError, match="TEK ATIŞ"):   # çöken koşu da hakkı tüketti
+        P.run_protocol("insample", **kw)
+
+
+def test_preexisting_lock_blocks_run(tmp_path):
+    data, rep, kw = _env(tmp_path)
+    rep.mkdir()
+    (rep / "V2_INSAMPLE.lock").write_text("başka süreç", encoding="utf-8")
+    with pytest.raises(P.ProtocolError, match="TEK ATIŞ"):
+        P.run_protocol("insample", **kw)
+
+
+def test_coverage_errors_do_not_consume_the_shot(tmp_path):
     with pytest.raises(P.ProtocolError, match="veri yok"):
-        P.run_protocol("insample", tmp_path, tmp_path / "r", ("NOPE",), PER, SP)
-    data = tmp_path / "data"
-    data.mkdir()
-    _write_data(data)
-    late = P.Periods(insample_start="2024-06-01", insample_end_excl="2025-02-01",
-                     holdout_start="2025-02-01")
-    # veri 2025-01-01'de başlıyor; dönem başı 2024-06-01 → kapsama hatası DEĞİL (veri
-    # daha geç başlıyor) ama protokol bunu yakalamalı
+        P.run_protocol("insample", tmp_path, tmp_path / "r", ("NOPE",), PER, SP,
+                       _allow_custom=True)
+    # veri dönem sonuna ulaşmıyor (n=1000 → ~10 gün; dönem sonu 2025-02-01)
+    data, rep, kw = _env(tmp_path / "short", n=1000) if (tmp_path / "short").mkdir() is None else None
+    with pytest.raises(P.ProtocolError, match="ulaşmıyor"):
+        P.run_protocol("insample", **kw)
+    assert not (rep / "V2_INSAMPLE.lock").exists()
+    # dönem başı veriden önce
+    data2 = tmp_path / "d2"
+    data2.mkdir()
+    _write_data(data2)
+    early = P.Periods(insample_start="2024-06-01", insample_end_excl="2025-02-01",
+                      holdout_start="2025-02-01")
     with pytest.raises(P.ProtocolError, match="kapsamıyor"):
-        P.run_protocol("insample", data, tmp_path / "r2", ("AAA", "BBB"), late, SP)
+        P.run_protocol("insample", data2, tmp_path / "r2", ("AAA", "BBB"), early, SP,
+                       _allow_custom=True)

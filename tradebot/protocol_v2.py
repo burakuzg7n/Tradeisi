@@ -16,6 +16,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import os
 import math
 import platform
 import subprocess
@@ -168,8 +169,9 @@ def run_period(
     htf_c = htf[htf.index < end_ts]
     if len(ltf_c) == 0:
         raise ProtocolError("dönem için veri yok")
-    orders = generate_orders_v2(ltf_c, htf_c, sp)
     s_idx = int(ltf_c.index.searchsorted(start_ts))
+    # E3c: dönem öncesi barlar yalnız gösterge ısınması; setup durumu sıfır başlar
+    orders = generate_orders_v2(ltf_c, htf_c, sp, trade_from_idx=s_idx)
     sliced = ltf_c.iloc[s_idx:]
     shifted = [
         replace(o, created_idx=o.created_idx - s_idx, expiry_idx=o.expiry_idx - s_idx)
@@ -177,7 +179,7 @@ def run_period(
     ]
     res = Backtester(bp).run(sliced, shifted, liquidate_at_end=True)
     info = {
-        "orders_total_incl_warmup": len(orders),
+        "orders_generated": len(orders),
         "orders_in_period": len(shifted),
         "period_first_bar": str(sliced.index[0]) if len(sliced) else None,
         "period_last_bar": str(sliced.index[-1]) if len(sliced) else None,
@@ -271,6 +273,66 @@ def _load_symbol(data_dir: Path, symbol: str) -> tuple[pd.DataFrame, pd.DataFram
     return ltf, htf, meta
 
 
+# ----------------------------------------------------------------- mühür / kilit
+def _canon(obj) -> str:
+    return json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def seal(report: dict) -> dict:
+    """Raporun bütünlük mührü (sha256). Elle değiştirilirse doğrulama bozulur.
+    (Kurcalamaya karşı kriptografik güvence DEĞİL; kazara/kolay değişikliği yakalar.)"""
+    body = {k: v for k, v in report.items() if k != "integrity"}
+    report["integrity"] = hashlib.sha256(_canon(body).encode("utf-8")).hexdigest()
+    return report
+
+
+def verify_seal(report: dict) -> bool:
+    body = {k: v for k, v in report.items() if k != "integrity"}
+    want = hashlib.sha256(_canon(body).encode("utf-8")).hexdigest()
+    return report.get("integrity") == want
+
+
+def _protocol_config(symbols, periods, sp, bp) -> dict:
+    return _clean({"symbols": list(symbols), "periods": dataclasses.asdict(periods),
+                   "strategy": dataclasses.asdict(sp), "backtest": dataclasses.asdict(bp)})
+
+
+def _acquire_lock(path: Path) -> None:
+    """Koşu BAŞLAMADAN atomik kilit (O_EXCL). Çökme/yarım kalma da kilidi tüketir."""
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        raise ProtocolError(
+            f"{path.name} kilidi var: bu faz için koşu daha önce BAŞLATILMIŞ (tamamlanmamış "
+            "olabilir). TEK ATIŞ kullanılmış sayılır. Sonuç dosyası yoksa ve hiçbir sonuç "
+            "görülmediyse kilidi yalnız Burak bilinçli olarak silebilir; sonuç dosyası "
+            "varsa ASLA silinmez.")
+    with os.fdopen(fd, "w") as fh:
+        fh.write(f"{datetime.now(timezone.utc).isoformat()} pid={os.getpid()}\n")
+
+
+def _require_coverage(symbol, ltf, htf, start_ts, end_ts, min_ratio=0.99) -> None:
+    day = pd.Timedelta(days=1)
+    if ltf.index[0] > start_ts + day:
+        raise ProtocolError(f"[{symbol}] 15m veri {start_ts.date()} tarihini kapsamıyor (ilk bar {ltf.index[0]})")
+    if ltf.index[-1] < end_ts - day or htf.index[-1] < end_ts - day:
+        raise ProtocolError(f"[{symbol}] veri dönem sonuna ({end_ts.date()}) ulaşmıyor "
+                            f"(15m son {ltf.index[-1]}, 4h son {htf.index[-1]})")
+    expected = (end_ts - start_ts) / pd.Timedelta(minutes=15)
+    have = int(((ltf.index >= start_ts) & (ltf.index < end_ts)).sum())
+    if have / expected < min_ratio:
+        raise ProtocolError(f"[{symbol}] dönem kapsama oranı %{have/expected*100:.1f} < %{min_ratio*100:.0f}")
+
+
+def _recompute_pass(prev: dict) -> bool:
+    c = dict(prev["combined"])
+    pf = c["profit_factor"]
+    c["profit_factor"] = float("inf") if pf == "inf" else (0.0 if pf == "nan" else float(pf))
+    return evaluate_insample({"profit_factor": c["profit_factor"],
+                              "total_trades": int(c["total_trades"]),
+                              "max_drawdown": float(c["max_drawdown"])})["passed"]
+
+
 # ----------------------------------------------------------------- koşu
 def run_protocol(
     phase: str,
@@ -281,31 +343,53 @@ def run_protocol(
     sp: StrategyParams = StrategyParams(),
     bp: BacktestParams = BacktestParams(),
     root: Path = ROOT,
+    _allow_custom: bool = False,
 ) -> dict:
+    """Güvenlik notu: kilitler yerel dosyalara dayanır; dosyayı silmek / başka
+    report_dir kullanmak / kodu değiştirip parmak izini yeniden üretmek bilinçli
+    müdahaledir ve kod tarafından ENGELLENEMEZ. Gerçek güvence: sonuç raporunun
+    HEMEN git'e commit edilmesi ve bağımsız denetim (AGENTS.md).
+    `_allow_custom` yalnız testler içindir; CLI hiçbir zaman açmaz."""
     if phase not in ("insample", "holdout"):
         raise ProtocolError("phase: insample | holdout")
+    if not _allow_custom and (
+        tuple(symbols) != SYMBOLS or periods != Periods()
+        or sp != StrategyParams() or bp != BacktestParams()
+    ):
+        raise ProtocolError("Üretim protokolünde semboller, dönemler ve parametreler SABİT "
+                            "(varsayılanlar); değiştirilemez.")
     report_dir.mkdir(parents=True, exist_ok=True)
     ins_path, ho_path = report_dir / INSAMPLE_FILE, report_dir / HOLDOUT_FILE
+    lock_path = report_dir / (INSAMPLE_FILE if phase == "insample" else HOLDOUT_FILE).replace(".json", ".lock")
     fp = code_fingerprint(root)
+    cfg = _protocol_config(symbols, periods, sp, bp)
 
     prev_ins = None
     if phase == "insample":
-        if ins_path.exists():
+        if ins_path.exists() or lock_path.exists():
             raise ProtocolError(
-                f"{INSAMPLE_FILE} zaten var: TEK ATIŞ kullanıldı. Yeniden koşmak = yeni "
-                "versiyon numarası (V2.1) + yeni tek atış. Dosyayı silme.")
+                f"{INSAMPLE_FILE}/kilit zaten var: TEK ATIŞ kullanıldı. Yeniden koşmak = yeni "
+                "versiyon numarası (V2.1) + yeni tek atış. Dosyaları silme.")
     else:
-        if ho_path.exists():
-            raise ProtocolError(f"{HOLDOUT_FILE} zaten var: hold-out TEK ATIŞ kullanıldı.")
+        if ho_path.exists() or lock_path.exists():
+            raise ProtocolError(f"{HOLDOUT_FILE}/kilit zaten var: hold-out TEK ATIŞ kullanıldı.")
         if not ins_path.exists():
             raise ProtocolError("Önce in-sample koşulmalı (V2_INSAMPLE.json yok).")
         prev_ins = json.loads(ins_path.read_text(encoding="utf-8"))
-        if not prev_ins.get("gates_passed"):
+        if not verify_seal(prev_ins):
+            raise ProtocolError("In-sample raporu bütünlük mührüyle uyuşmuyor (elle değiştirilmiş).")
+        if _recompute_pass(prev_ins) != bool(prev_ins.get("gates_passed")):
+            raise ProtocolError("In-sample raporu kendi içinde tutarsız (kapılar yeniden hesaplanamadı).")
+        if not _recompute_pass(prev_ins):
             raise ProtocolError("V2 in-sample kapılarında KALDI: V2 REDDEDİLDİ, hold-out koşulmaz.")
         if prev_ins.get("code_fingerprint") != fp:
             raise ProtocolError(
                 "Kod/spesifikasyon in-sample'dan beri DEĞİŞMİŞ (parmak izi uyuşmuyor). "
                 "Kural değişikliği = yeni versiyon + yeni tek atış.")
+        if prev_ins.get("protocol_config") != cfg:
+            raise ProtocolError(
+                "Semboller/dönemler/strateji-maliyet parametreleri in-sample'dan farklı. "
+                "Parametre değişikliği = yeni versiyon + yeni tek atış.")
 
     loaded, data_meta, results, run_infos, slice_hashes = {}, {}, {}, {}, {}
     for s in symbols:
@@ -322,10 +406,6 @@ def run_protocol(
 
     if phase == "insample":
         start, end_excl = periods.insample_start, ins_end
-        for s in symbols:  # veri dönem başını kapsamalı
-            first = loaded[s][0].index[0]
-            if first > pd.Timestamp(start, tz="UTC") + pd.Timedelta(days=1):
-                raise ProtocolError(f"[{s}] veri {start} tarihini kapsamıyor (ilk bar {first})")
     else:
         for s in symbols:
             if prev_ins["slice_hashes"].get(s) != slice_hashes[s]:
@@ -335,6 +415,13 @@ def run_protocol(
         end_excl = min(last_full_day_end(loaded[s][0]) for s in symbols)
         if end_excl <= pd.Timestamp(start, tz="UTC"):
             raise ProtocolError("hold-out için yeterli veri yok")
+    start_ts = pd.Timestamp(start, tz="UTC")
+    end_ts = pd.Timestamp(end_excl)
+    for s in symbols:
+        _require_coverage(s, loaded[s][0], loaded[s][1], start_ts, end_ts)
+
+    # ---- tüm doğrulamalar geçti: TEK ATIŞ HAKKI BURADA TÜKETİLİR (koşudan önce, atomik)
+    _acquire_lock(lock_path)
 
     for s in symbols:
         ltf, htf = loaded[s]
@@ -347,25 +434,27 @@ def run_protocol(
     report = {
         "version": VERSION, "phase": phase,
         "run_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "period": {"start": str(pd.Timestamp(start, tz="UTC")), "end_exclusive": str(end_excl)},
+        "period": {"start": str(start_ts), "end_exclusive": str(end_excl)},
         "gates": verdict["gates"], "gates_passed": verdict["passed"],
         "verdict": "GEÇTİ" if verdict["passed"] else "KALDI",
-        "combined": {k: _num(v) if not isinstance(v, dict) else v for k, v in combined.items()},
+        "combined": combined,
         "per_symbol": per_symbol,
         "run_info": run_infos,
         "data": data_meta,
         "slice_hashes": slice_hashes,
         "code_fingerprint": fp,
+        "protocol_config": cfg,
         "git": _git_info(),
         "env": {"python": platform.python_version(), "pandas": pd.__version__,
                 "numpy": np.__version__},
-        "params": {"strategy": dataclasses.asdict(sp), "backtest": dataclasses.asdict(bp)},
         "insample_reference": (
             {"verdict": prev_ins["verdict"], "run_utc": prev_ins["run_utc"]} if prev_ins else None),
     }
-    report = _clean(report)
+    report = seal(_clean(report))
     out = ins_path if phase == "insample" else ho_path
-    out.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp = out.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, out)                                   # atomik yazım
     out.with_suffix(".md").write_text(render_markdown(report), encoding="utf-8")
     return report
 

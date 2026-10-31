@@ -70,6 +70,10 @@ her biri **yeni başlangıç sermayesi** (V2: sembol başına 10.000 $; Plan B: 
 başlangıcından önce yoksa (ör. in-sample başı) E5'teki yeterli geçmiş şartı geçerli.
 Plan B'nin DD'si **ortak hesabın günlük kapanış mark-to-market equity**'si üzerinden
 hesaplanır (V2'deki iki-eğri toplamı yöntemi yalnız V2 içindir).
+*V2 uygulaması (netleştirme):* dönem öncesi barlarda yalnız pivot/swing seviyeleri
+güncellenir; sweep tespit edilmez, hiçbir swing seviyesi "tüketilmez" ve dönem
+öncesi bir sweep'e dayanan emir dönem içinde alınmaz. Dönem ilk barından itibaren
+normal akış işler.
 
 **E4 — Hold-out kapısı [KARAR].**
 §8: hold-out'ta "PF > 1,15 korunmalı". **Ekleme:** ayrıca DD < %15 şartı.
