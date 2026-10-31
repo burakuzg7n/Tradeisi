@@ -1,0 +1,55 @@
+{
+ "_note": "SENTETIK veri - motor dogrulamasi. Strateji performansi DEGILDIR. Gercek veri icin: python scripts/download_data.py && python scripts/run_backtest.py",
+ "_data": "52.608 bar 15M + 3.288 bar 4H, rejim degistiren rastgele seri",
+ "session_filter_on": {
+  "total_trades": 80,
+  "win_rate": 0.425,
+  "profit_factor": 1.264,
+  "expectancy_r": 0.1743,
+  "max_drawdown": 0.0707,
+  "sharpe": 0.87,
+  "final_balance": 10696.8,
+  "longs": 43,
+  "shorts": 37,
+  "cancelled_orders": 0,
+  "expired_orders": 7,
+  "avg_win_r": 1.945,
+  "avg_loss_r": -1.134,
+  "session_expectancy_r": {
+   "london": 0.253,
+   "london_ny_overlap": 0.103
+  },
+  "orders": 87,
+  "monte_carlo": {
+   "p95_dd_r": 15.3,
+   "max_dd_r": 22.39
+  }
+ },
+ "session_filter_off": {
+  "total_trades": 269,
+  "win_rate": 0.4015,
+  "profit_factor": 1.146,
+  "expectancy_r": 0.1012,
+  "max_drawdown": 0.1087,
+  "sharpe": 0.93,
+  "final_balance": 11370.7,
+  "longs": 136,
+  "shorts": 133,
+  "cancelled_orders": 29,
+  "expired_orders": 25,
+  "avg_win_r": 1.936,
+  "avg_loss_r": -1.13,
+  "session_expectancy_r": {
+   "asian": 0.046,
+   "london": 0.265,
+   "london_ny_overlap": 0.044,
+   "new_york": -0.021,
+   "off_hours": 0.162
+  },
+  "orders": 323,
+  "monte_carlo": {
+   "p95_dd_r": 28.9,
+   "max_dd_r": 51.5
+  }
+ }
+}

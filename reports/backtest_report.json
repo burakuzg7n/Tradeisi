@@ -1,0 +1,101 @@
+[
+  {
+    "total_trades": 68,
+    "win_rate": 0.3971,
+    "profit_factor": 1.035,
+    "expectancy_r": 0.0309,
+    "max_drawdown": 0.0793,
+    "sharpe": 0.14,
+    "final_balance": 10085.79,
+    "longs": 35,
+    "shorts": 33,
+    "cancelled_orders": 0,
+    "expired_orders": 28,
+    "avg_win_r": 1.907,
+    "avg_loss_r": -1.205,
+    "session_expectancy_r": {
+      "london": 0.164,
+      "london_ny_overlap": -0.057
+    },
+    "symbol": "BTCUSD",
+    "orders_generated": 96,
+    "session_filter": true,
+    "monte_carlo": {
+      "p95_dd_r": 18.42,
+      "max_dd_r": 30.04
+    },
+    "volume_filter_variant": {
+      "total_trades": 51,
+      "win_rate": 0.4314,
+      "profit_factor": 1.213,
+      "expectancy_r": 0.1494,
+      "max_drawdown": 0.0328
+    }
+  },
+  {
+    "total_trades": 394,
+    "win_rate": 0.335,
+    "profit_factor": 0.816,
+    "expectancy_r": -0.1408,
+    "max_drawdown": 0.3074,
+    "sharpe": -0.68,
+    "final_balance": 7497.42,
+    "longs": 219,
+    "shorts": 175,
+    "cancelled_orders": 7,
+    "expired_orders": 110,
+    "avg_win_r": 1.914,
+    "avg_loss_r": -1.176,
+    "session_expectancy_r": {
+      "london": -0.154,
+      "london_ny_overlap": -0.132
+    },
+    "symbol": "BTCUSDT",
+    "orders_generated": 512,
+    "session_filter": true,
+    "monte_carlo": {
+      "p95_dd_r": 81.54,
+      "max_dd_r": 97.58
+    },
+    "volume_filter_variant": {
+      "total_trades": 269,
+      "win_rate": 0.3494,
+      "profit_factor": 0.873,
+      "expectancy_r": -0.0931,
+      "max_drawdown": 0.2163
+    }
+  },
+  {
+    "total_trades": 423,
+    "win_rate": 0.3168,
+    "profit_factor": 0.782,
+    "expectancy_r": -0.18,
+    "max_drawdown": 0.365,
+    "sharpe": -0.98,
+    "final_balance": 6758.32,
+    "longs": 235,
+    "shorts": 188,
+    "cancelled_orders": 12,
+    "expired_orders": 86,
+    "avg_win_r": 1.922,
+    "avg_loss_r": -1.155,
+    "session_expectancy_r": {
+      "london": -0.105,
+      "london_ny_overlap": -0.23
+    },
+    "symbol": "ETHUSDT",
+    "orders_generated": 521,
+    "session_filter": true,
+    "monte_carlo": {
+      "p95_dd_r": 97.55,
+      "max_dd_r": 112.79
+    },
+    "volume_filter_variant": {
+      "total_trades": 280,
+      "win_rate": 0.2857,
+      "profit_factor": 0.658,
+      "expectancy_r": -0.2703,
+      "max_drawdown": 0.3648
+    }
+  }
+]

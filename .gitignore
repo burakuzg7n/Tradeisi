@@ -1,0 +1,22 @@
+# --- GIZLI BILGILER: asla GitHub'a gitmemeli ---
+.env
+*.env
+!.env.example
+
+# --- Veri ve kayitlar (data/ download_data.py ile yeniden indirilir) ---
+data/
+*.db
+*.sqlite
+
+# --- Python ---
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# --- Proje disi / gecici ---
+denemeçpy.txt
+Thumbs.db
+.DS_Store
+desktop.ini
