@@ -29,6 +29,11 @@ geçerlidir.
    edilmez.
 10. **Merge şartı:** `python -m pytest tests/` yeşil olmadan `main`'e birleştirme yok.
 
+## Bağlayıcı spesifikasyon belgeleri
+- `DEVIR_NOTU.md` §8 (V2) ve §9 (Plan B): strateji kuralları.
+- `docs/SPEC_EKLERI.md`: bu kuralların tek anlama bağlanmış yorumu (31 Ekim 2026,
+  veriye bakılmadan). Sonuç görüldükten sonra değiştirilemez; değişiklik = yeni versiyon.
+
 ## Rol dağılımı (öneri)
 - **Claude:** kod yazma, backtest, test koşma.
 - **ChatGPT:** bağımsız kod/mantık incelemesi (lookahead, hatalı varsayım avı),
