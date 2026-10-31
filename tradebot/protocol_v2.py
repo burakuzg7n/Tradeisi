@@ -312,16 +312,22 @@ def _acquire_lock(path: Path) -> None:
 
 
 def _require_coverage(symbol, ltf, htf, start_ts, end_ts, min_ratio=0.99) -> None:
+    """Hem 15m hem 4h veri dönemin başını, sonunu ve içini kapsamalı (HTF'siz/eksik
+    HTF'li koşu geçersizdir ve tek atışı tüketmemelidir)."""
     day = pd.Timedelta(days=1)
-    if ltf.index[0] > start_ts + day:
-        raise ProtocolError(f"[{symbol}] 15m veri {start_ts.date()} tarihini kapsamıyor (ilk bar {ltf.index[0]})")
-    if ltf.index[-1] < end_ts - day or htf.index[-1] < end_ts - day:
-        raise ProtocolError(f"[{symbol}] veri dönem sonuna ({end_ts.date()}) ulaşmıyor "
-                            f"(15m son {ltf.index[-1]}, 4h son {htf.index[-1]})")
-    expected = (end_ts - start_ts) / pd.Timedelta(minutes=15)
-    have = int(((ltf.index >= start_ts) & (ltf.index < end_ts)).sum())
-    if have / expected < min_ratio:
-        raise ProtocolError(f"[{symbol}] dönem kapsama oranı %{have/expected*100:.1f} < %{min_ratio*100:.0f}")
+    for name, df, step in (("15m", ltf, pd.Timedelta(minutes=15)),
+                           ("4h", htf, pd.Timedelta(hours=4))):
+        if df.index[0] > start_ts + day:
+            raise ProtocolError(f"[{symbol}] {name} veri {start_ts.date()} tarihini kapsamıyor "
+                                f"(ilk bar {df.index[0]})")
+        if df.index[-1] < end_ts - day:
+            raise ProtocolError(f"[{symbol}] {name} veri dönem sonuna ({end_ts.date()}) ulaşmıyor "
+                                f"(son bar {df.index[-1]})")
+        expected = (end_ts - start_ts) / step
+        have = int(((df.index >= start_ts) & (df.index < end_ts)).sum())
+        if have / expected < min_ratio:
+            raise ProtocolError(f"[{symbol}] {name} dönem kapsama oranı "
+                                f"%{have/expected*100:.1f} < %{min_ratio*100:.0f}")
 
 
 def _recompute_pass(prev: dict) -> bool:

@@ -393,3 +393,25 @@ def test_coverage_errors_do_not_consume_the_shot(tmp_path):
     with pytest.raises(P.ProtocolError, match="kapsamıyor"):
         P.run_protocol("insample", data2, tmp_path / "r2", ("AAA", "BBB"), early, SP,
                        _allow_custom=True)
+
+
+def _htf_variant(data, symbol, keep):
+    """4h dosyasını `keep(htf)` ile değiştir (15m dokunulmaz)."""
+    from tradebot.data import load_csv
+    h = load_csv(data / f"{symbol}_4h.csv")
+    save_csv(keep(h), data / f"{symbol}_4h.csv")
+
+
+def test_htf_coverage_gaps_are_rejected_without_consuming_the_shot(tmp_path):
+    for label, keep, msg in (
+        ("yalniz son iki bar", lambda h: h.iloc[-2:], "kapsamıyor"),
+        ("ilk yarisi eksik", lambda h: h.iloc[len(h) // 2:], "kapsamıyor"),
+        ("ortadan buyuk kayip", lambda h: h.drop(h.index[100:160]), "kapsama oranı"),
+    ):
+        base = tmp_path / label.replace(" ", "_")
+        base.mkdir()
+        data, rep, kw = _env(base)
+        _htf_variant(data, "AAA", keep)
+        with pytest.raises(P.ProtocolError, match=msg):
+            P.run_protocol("insample", **kw)
+        assert not (rep / "V2_INSAMPLE.lock").exists(), label
