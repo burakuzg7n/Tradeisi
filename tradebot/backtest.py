@@ -10,8 +10,11 @@ Muhafazakâr varsayımlar (backtest her zaman gerçekten KÖTÜ olmalı, iyi de�
 - Tek pozisyon: bir pozisyonun KAPANDIĞI barda yeni fill alınmaz (barın başında
   pozisyon hâlâ açıktı; bar içi çıkışı bilip yer açmak lookahead olur).
 - Stop gap: bar stopun ötesinde açılırsa çıkış açılış fiyatından (stop'tan değil).
-- Geometri: dolum fiyatı stopun yanlış tarafındaysa emir reddedilir (risk
-  motoru da canlıda reddeder); invalid_geometry_orders olarak sayılır.
+- Gap stopu veya hedefi geçerse (dolum stopun/hedefin ötesinde): işlem GERÇEKLEŞİR
+  ve aynı barda hemen kapanır, giriş+çıkış ücreti ve slippage ödenir
+  (gap_stopouts / gap_target_exits). Çıkış slippage'i ham açılıştan. Market emir açılışta dolduğu için, stop vurulmamışsa
+  aynı bardaki hedef teması da işlenir; limit emirde giriş barı hedef teması
+  sayılmaz (bar içi sıra bilinmez).
 """
 from __future__ import annotations
 
@@ -52,6 +55,8 @@ class BacktestResult:
     cancelled_orders: int = 0
     expired_orders: int = 0
     invalid_geometry_orders: int = 0
+    gap_stopouts: int = 0
+    gap_target_exits: int = 0
 
     # --- metrikler ---
     @property
@@ -121,6 +126,8 @@ class BacktestResult:
             "cancelled_orders": self.cancelled_orders,
             "expired_orders": self.expired_orders,
             "invalid_geometry_orders": self.invalid_geometry_orders,
+            "gap_stopouts": self.gap_stopouts,
+            "gap_target_exits": self.gap_target_exits,
             "avg_win_r": round(
                 float(np.mean([t.pnl_r for t in self.wins])), 3
             ) if self.wins else 0.0,
@@ -221,15 +228,51 @@ class Backtester:
                     )
                     fill_price = o.entry
                     fee_rate = self.p.maker_fee
+                    # limit emir stopun ÖTESİNDE açılan barda dolduysa gerçek dolum
+                    # açılış fiyatıdır (aşağıdaki gap-through-stop yolu işler)
+                    if filled and (
+                        open_[i] <= o.stop if o.side == "long" else open_[i] >= o.stop
+                    ):
+                        fill_price = open_[i]
                 if filled and open_pos is None and not closed_this_bar:
-                    # geometri: dolum stopun doğru tarafında olmalı
-                    bad_geom = (
-                        fill_price <= o.stop if o.side == "long"
-                        else fill_price >= o.stop
+                    long_ = o.side == "long"
+                    through_stop = (
+                        fill_price <= o.stop if long_ else fill_price >= o.stop
                     )
-                    if bad_geom:
-                        result.invalid_geometry_orders += 1
-                        result.cancelled_orders += 1
+                    through_target = (
+                        fill_price >= o.target if long_ else fill_price <= o.target
+                    )
+                    if through_stop or through_target:
+                        # Gap stopu ya da hedefi geçti: emir zaten gönderildi, dolum
+                        # GERÇEKLEŞİR ve hemen kapanır (maliyetsiz iptal iyimser olurdu).
+                        #  - stop ötesi: hemen stop (kayıp)
+                        #  - hedef ötesi: hemen kapanış (aynı açılış fiyatı, maliyetler dahil)
+                        # Çıkış slippage'i HAM açılıştan hesaplanır (giriş slippage'li
+                        # fiyata ikinci kez uygulanmaz). Çıkış taker.
+                        # Boyut planlanan riskten (sinyal anındaki |entry-stop|).
+                        planned = o.risk
+                        if planned <= 0:
+                            result.cancelled_orders += 1
+                            continue
+                        risk_amount = balance * self.p.risk_per_trade
+                        size = risk_amount / planned
+                        entry_fee = fill_price * size * fee_rate
+                        pos = _OpenPosition(
+                            o, i, size, risk_amount, entry_fee, fill_price
+                        )
+                        exit_price = open_[i] * (
+                            1 - self.p.slippage_rate if long_
+                            else 1 + self.p.slippage_rate
+                        )
+                        reason = "stop" if through_stop else "gap_target"
+                        balance = self._close(
+                            result, pos, exit_price, reason, i, balance
+                        )
+                        if through_stop:
+                            result.gap_stopouts += 1
+                        else:
+                            result.gap_target_exits += 1
+                        closed_this_bar = True
                         continue
                     real_risk = abs(fill_price - o.stop)
                     if real_risk <= 0:
@@ -244,6 +287,9 @@ class Backtester:
                     stopped_same_bar = (
                         low[i] <= o.stop if o.side == "long" else high[i] >= o.stop
                     )
+                    target_same_bar = (
+                        high[i] >= o.target if o.side == "long" else low[i] <= o.target
+                    )
                     if stopped_same_bar:
                         exit_price = (
                             o.stop * (1 - self.p.slippage_rate)
@@ -252,6 +298,14 @@ class Backtester:
                         )
                         balance = self._close(
                             result, pos, exit_price, "stop", i, balance
+                        )
+                        closed_this_bar = True
+                    elif o.market and target_same_bar:
+                        # Market emir barın AÇILIŞINDA doldu: sıra bellidir, stop
+                        # vurulmadıysa hedef teması gerçektir (stop+hedef → stop
+                        # önceliği yukarıda zaten uygulandı).
+                        balance = self._close(
+                            result, pos, o.target, "target", i, balance
                         )
                         closed_this_bar = True
                     else:
