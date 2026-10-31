@@ -181,9 +181,20 @@ def test_save_load_roundtrip_preserves_dates_with_ms_index(tmp_path):
 
 def test_v2_generates_market_order_after_choch():
     """V2: sweep -> tetik seviyesi close ile kirilinca MARKET emir."""
-    from tests.test_strategy_server import _bull_scenario_df, _bull_htf
+    from tests.test_strategy_server import make_df, _bull_htf
     from tradebot.strategy_v2 import generate_orders_v2
-    ltf = _bull_scenario_df()
+    # V1 senaryosu + CHoCH tetik mumu: sweep (i=10) oncesi 10 barin en yuksegi
+    # 100.5 -> i=13 close=101.5 bunu kirar. (V1 senaryosunda hic kirilmiyordu.)
+    bars = []
+    prices = [100, 99.5, 99, 98, 97, 95, 97, 98, 98.5, 99]
+    for p in prices:
+        bars.append((p + 0.2, p + 0.5, p - 0.3, p))
+    bars.append((99, 96.2, 94, 96))          # i=10: sweep
+    bars.append((96, 98.5, 95.8, 98.3))      # i=11
+    bars.append((98.3, 100.5, 97.0, 100))    # i=12: close 100 < 100.5, tetik YOK
+    bars.append((100, 102, 99.8, 101.5))     # i=13: close 101.5 > 100.5 -> tetik
+    bars += [(101.5, 102, 101, 101.5)] * 4
+    ltf = make_df(bars, start="2026-07-06 06:00")
     htf = _bull_htf()
     params = StrategyParams(ltf_pivot=3, use_session_filter=False)
     orders = generate_orders_v2(ltf, htf, params)
