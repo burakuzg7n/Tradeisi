@@ -62,30 +62,64 @@ def test_short_stop_gap_exits_at_open():
     o = _order(side="short", stop=105.0, target=80.0, created_idx=0, expiry_idx=2)
     r = _bt().run(make_df(bars), [o])
     t = r.trades[0]
+    assert t.exit_reason == "stop"
     assert t.exit_price == pytest.approx(110.0)
     assert t.pnl_r < -1.0
 
 
-def test_market_gap_through_stop_is_costly_loss_not_free_cancel():
-    """#3 (revize): stopun ötesinde dolan market emir GERÇEKLEŞİR ve hemen stop olur."""
+def _costly_bt():
+    return Backtester(BacktestParams(
+        initial_balance=10_000, maker_fee=0.0005, taker_fee=0.001,
+        slippage_rate=0.001))
+
+
+def _expected_pnl(side, size, entry_fill, exit_px, entry_fee_rate, exit_fee_rate):
+    gross = (exit_px - entry_fill) * size if side == "long" else (entry_fill - exit_px) * size
+    return gross - entry_fill * size * entry_fee_rate - exit_px * size * exit_fee_rate
+
+
+def test_market_gap_through_stop_costs_are_exact():
+    """#3: stopun ötesinde dolan market emir gerçekleşir; PnL ücret+slippage dahil TAM."""
     bars = [
         (101, 102, 100.5, 101),
-        (98, 99, 97, 98),      # open=98 <= stop=100 -> gap through stop
+        (98, 99, 97, 98),      # open=98 <= stop=100
         (98, 99, 97, 98),
     ]
     o = _order(entry=101.0, stop=100.0, target=103.0, created_idx=0, expiry_idx=2)
-    r = Backtester(BacktestParams(initial_balance=10_000, maker_fee=0.0005,
-                                  taker_fee=0.001, slippage_rate=0.001)).run(
-        make_df(bars), [o])
-    assert len(r.trades) == 1, "iptal edilmemeli, maliyetli kayıp yazılmalı"
+    bt = _costly_bt()
+    r = bt.run(make_df(bars), [o])
+    assert len(r.trades) == 1 and r.gap_stopouts == 1
     t = r.trades[0]
-    assert t.exit_reason == "stop"
-    assert t.pnl_usd < 0
-    assert r.gap_stopouts == 1
+    size = 10_000 * bt.p.risk_per_trade / 1.0          # planlanan risk = 1
+    fill = 98 * 1.001                                   # giriş: open + slippage
+    exit_px = 98 * 0.999                                # çıkış: HAM open - slippage
+    assert t.exit_price == pytest.approx(exit_px)
+    assert t.pnl_usd == pytest.approx(
+        _expected_pnl("long", size, fill, exit_px, 0.001, 0.001))
 
 
-def test_limit_gap_through_stop_fills_at_open_and_stops():
-    """#2 (limit yolu): limit emir stopun ötesinde AÇILAN barda dolar ve stop olur."""
+def test_short_market_gap_through_stop_costs_are_exact():
+    bars = [
+        (99, 100, 98, 99),
+        (110, 111, 109, 110),   # open=110 >= stop=105
+        (110, 111, 109, 110),
+    ]
+    o = _order(side="short", entry=99.0, stop=105.0, target=90.0,
+               created_idx=0, expiry_idx=2)
+    bt = _costly_bt()
+    r = bt.run(make_df(bars), [o])
+    assert len(r.trades) == 1 and r.gap_stopouts == 1
+    t = r.trades[0]
+    size = 10_000 * bt.p.risk_per_trade / 6.0
+    fill = 110 * 0.999
+    exit_px = 110 * 1.001
+    assert t.exit_price == pytest.approx(exit_px)
+    assert t.pnl_usd == pytest.approx(
+        _expected_pnl("short", size, fill, exit_px, 0.001, 0.001))
+
+
+def test_limit_gap_through_stop_costs_are_exact():
+    """#2 (limit yolu): açılıştan dolum (maker), hemen stop (taker), ücretler tam."""
     bars = [
         (105, 106, 104, 105),
         (90, 92, 89, 91),      # limit 100, stop 95; bar 90'da açıldı
@@ -93,25 +127,37 @@ def test_limit_gap_through_stop_fills_at_open_and_stops():
     ]
     o = _order(market=False, entry=100.0, stop=95.0, target=110.0,
                created_idx=0, expiry_idx=2, cancel_beyond=-1e18)
-    r = _bt().run(make_df(bars), [o])
-    assert len(r.trades) == 1
+    bt = _costly_bt()
+    r = bt.run(make_df(bars), [o])
+    assert len(r.trades) == 1 and r.gap_stopouts == 1
     t = r.trades[0]
-    assert t.entry == pytest.approx(90.0)          # gerçek dolum = açılış
-    assert t.exit_price == pytest.approx(90.0)     # stop 95'ten DEĞİL açılıştan
-    assert r.gap_stopouts == 1
+    size = 10_000 * bt.p.risk_per_trade / 5.0
+    exit_px = 90 * 0.999
+    assert t.entry == pytest.approx(90.0)
+    assert t.exit_price == pytest.approx(exit_px)
+    assert t.pnl_usd == pytest.approx(
+        _expected_pnl("long", size, 90.0, exit_px, 0.0005, 0.001))
 
 
-def test_market_fill_beyond_target_is_skipped():
-    """#3 (hedef tarafı): dolum hedefin ötesindeyse işlem alınmaz."""
+def test_market_fill_beyond_target_fills_and_exits_with_costs():
+    """#3 (hedef tarafı): iptal YOK; dolar, hemen kapanır, maliyet öder (küçük kayıp)."""
     bars = [
         (100, 101, 99, 100),
         (115, 116, 114, 115),  # open=115 >= target=110
         (115, 116, 114, 115),
     ]
     o = _order(entry=100.0, stop=95.0, target=110.0, created_idx=0, expiry_idx=2)
-    r = _bt().run(make_df(bars), [o])
-    assert len(r.trades) == 0
-    assert r.invalid_geometry_orders == 1
+    bt = _costly_bt()
+    r = bt.run(make_df(bars), [o])
+    assert len(r.trades) == 1 and r.gap_target_exits == 1
+    t = r.trades[0]
+    size = 10_000 * bt.p.risk_per_trade / 5.0
+    fill = 115 * 1.001
+    exit_px = 115 * 0.999
+    assert t.exit_reason == "gap_target"
+    assert t.pnl_usd == pytest.approx(
+        _expected_pnl("long", size, fill, exit_px, 0.001, 0.001))
+    assert t.pnl_usd < 0   # maliyetler yüzünden küçük kayıp, bedava kâr değil
 
 
 def test_market_entry_bar_target_touch_is_counted():

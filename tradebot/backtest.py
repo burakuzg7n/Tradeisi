@@ -10,9 +10,9 @@ Muhafazakâr varsayımlar (backtest her zaman gerçekten KÖTÜ olmalı, iyi de�
 - Tek pozisyon: bir pozisyonun KAPANDIĞI barda yeni fill alınmaz (barın başında
   pozisyon hâlâ açıktı; bar içi çıkışı bilip yer açmak lookahead olur).
 - Stop gap: bar stopun ötesinde açılırsa çıkış açılış fiyatından (stop'tan değil).
-- Gap stopu geçerse (dolum stopun ötesinde): işlem GERÇEKLEŞİR ve hemen stop olur
-  (maliyetli kayıp; gap_stopouts). Dolum hedefin ötesindeyse işlem atlanır
-  (invalid_geometry_orders). Market emir açılışta dolduğu için, stop vurulmamışsa
+- Gap stopu veya hedefi geçerse (dolum stopun/hedefin ötesinde): işlem GERÇEKLEŞİR
+  ve aynı barda hemen kapanır, giriş+çıkış ücreti ve slippage ödenir
+  (gap_stopouts / gap_target_exits). Çıkış slippage'i ham açılıştan. Market emir açılışta dolduğu için, stop vurulmamışsa
   aynı bardaki hedef teması da işlenir; limit emirde giriş barı hedef teması
   sayılmaz (bar içi sıra bilinmez).
 """
@@ -56,6 +56,7 @@ class BacktestResult:
     expired_orders: int = 0
     invalid_geometry_orders: int = 0
     gap_stopouts: int = 0
+    gap_target_exits: int = 0
 
     # --- metrikler ---
     @property
@@ -126,6 +127,7 @@ class BacktestResult:
             "expired_orders": self.expired_orders,
             "invalid_geometry_orders": self.invalid_geometry_orders,
             "gap_stopouts": self.gap_stopouts,
+            "gap_target_exits": self.gap_target_exits,
             "avg_win_r": round(
                 float(np.mean([t.pnl_r for t in self.wins])), 3
             ) if self.wins else 0.0,
@@ -240,16 +242,14 @@ class Backtester:
                     through_target = (
                         fill_price >= o.target if long_ else fill_price <= o.target
                     )
-                    if through_target and not through_stop:
-                        # hedefin ötesinde dolum: işlem alınmaz (kârlı olabilecek
-                        # bir işlemi atlamak muhafazakârdır)
-                        result.invalid_geometry_orders += 1
-                        result.cancelled_orders += 1
-                        continue
-                    if through_stop:
-                        # Gap stopu geçti: emir zaten gönderildi, dolum GERÇEKLEŞİR ve
-                        # hemen stop olur (maliyetsiz iptal iyimser olurdu).
-                        # Boyut planlanan riskten (sinyal anındaki entry-stop).
+                    if through_stop or through_target:
+                        # Gap stopu ya da hedefi geçti: emir zaten gönderildi, dolum
+                        # GERÇEKLEŞİR ve hemen kapanır (maliyetsiz iptal iyimser olurdu).
+                        #  - stop ötesi: hemen stop (kayıp)
+                        #  - hedef ötesi: hemen kapanış (aynı açılış fiyatı, maliyetler dahil)
+                        # Çıkış slippage'i HAM açılıştan hesaplanır (giriş slippage'li
+                        # fiyata ikinci kez uygulanmaz). Çıkış taker.
+                        # Boyut planlanan riskten (sinyal anındaki |entry-stop|).
                         planned = o.risk
                         if planned <= 0:
                             result.cancelled_orders += 1
@@ -260,14 +260,18 @@ class Backtester:
                         pos = _OpenPosition(
                             o, i, size, risk_amount, entry_fee, fill_price
                         )
-                        exit_price = fill_price * (
+                        exit_price = open_[i] * (
                             1 - self.p.slippage_rate if long_
                             else 1 + self.p.slippage_rate
                         )
+                        reason = "stop" if through_stop else "gap_target"
                         balance = self._close(
-                            result, pos, exit_price, "stop", i, balance
+                            result, pos, exit_price, reason, i, balance
                         )
-                        result.gap_stopouts += 1
+                        if through_stop:
+                            result.gap_stopouts += 1
+                        else:
+                            result.gap_target_exits += 1
                         closed_this_bar = True
                         continue
                     real_risk = abs(fill_price - o.stop)
