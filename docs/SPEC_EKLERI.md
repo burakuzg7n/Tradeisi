@@ -93,7 +93,15 @@ risk güvencesi vermez. **Dönem:** 2025-01-01 → verideki **son tam günün** 
 
 **E5b — Eksik veri günü [KARAR].**
 Bir sembolün o günkü barı eksikse o sembol o gün için **sinyal üretmez ve işlem
-yapmaz**. Eksik bar sayısı çalıştırma raporunda sembol başına belirtilir.
+yapmaz**. Devamı:
+- **Bekleyen giriş emri** (önceki gün üretilmiş, ertesi günü eksik): **iptal edilir**,
+  sonraki mevcut bara taşınmaz.
+- **Bekleyen kanal çıkışı:** pozisyon açıkta bırakılmaz; çıkış **ilk mevcut barın
+  açılışında** yapılır (taker + aleyhe slippage).
+- **Dönem sonu tasfiyesi (E3b):** sembolün **kendi son mevcut barının** kapanışında
+  yapılır; funding o bara kadar hesaplanır.
+- Eksik bar sayısı çalıştırma raporunda sembol başına belirtilir. BTC/ETH/SOL/BNB
+  günlük verisinde eksik bar **beklenmez**; bu madde tanımın eksiksiz olması içindir.
 
 **E6 — Stop ve ATR [YORUM].**
 - Stop = **gerçek dolum fiyatı − 2 × ATR(20)**; ATR: Wilder, **sinyal gününün** değeri.
