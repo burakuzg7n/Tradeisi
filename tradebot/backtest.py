@@ -7,6 +7,11 @@ Muhafazakâr varsayımlar (backtest her zaman gerçekten KÖTÜ olmalı, iyi de�
 - Stop çıkışı: stop-market → slippage aleyhe + taker fee.
 - Entry ve target: limit → maker fee.
 - Emir iptali: fill olmadan close FVG'yi tamamen geçerse veya süre dolarsa.
+- Tek pozisyon: bir pozisyonun KAPANDIĞI barda yeni fill alınmaz (barın başında
+  pozisyon hâlâ açıktı; bar içi çıkışı bilip yer açmak lookahead olur).
+- Stop gap: bar stopun ötesinde açılırsa çıkış açılış fiyatından (stop'tan değil).
+- Geometri: dolum fiyatı stopun yanlış tarafındaysa emir reddedilir (risk
+  motoru da canlıda reddeder); invalid_geometry_orders olarak sayılır.
 """
 from __future__ import annotations
 
@@ -46,6 +51,7 @@ class BacktestResult:
     equity_curve: pd.Series | None = None
     cancelled_orders: int = 0
     expired_orders: int = 0
+    invalid_geometry_orders: int = 0
 
     # --- metrikler ---
     @property
@@ -114,6 +120,7 @@ class BacktestResult:
             "shorts": sum(1 for t in self.trades if t.side == "short"),
             "cancelled_orders": self.cancelled_orders,
             "expired_orders": self.expired_orders,
+            "invalid_geometry_orders": self.invalid_geometry_orders,
             "avg_win_r": round(
                 float(np.mean([t.pnl_r for t in self.wins])), 3
             ) if self.wins else 0.0,
@@ -160,6 +167,7 @@ class Backtester:
         open_pos: _OpenPosition | None = None
 
         for i in range(n):
+            closed_this_bar = False
             # --- 1) Açık pozisyon yönetimi (bu barın high/low'una göre) ---
             if open_pos is not None and i > open_pos.entry_idx:
                 o = open_pos.order
@@ -167,14 +175,15 @@ class Backtester:
                 reason = None
                 if o.side == "long":
                     if low[i] <= o.stop:
-                        exit_price = o.stop * (1 - self.p.slippage_rate)
+                        # gap: bar stopun altında açıldıysa açılıştan çıkılır
+                        exit_price = min(o.stop, open_[i]) * (1 - self.p.slippage_rate)
                         reason = "stop"
                     elif high[i] >= o.target:
                         exit_price = o.target
                         reason = "target"
                 else:
                     if high[i] >= o.stop:
-                        exit_price = o.stop * (1 + self.p.slippage_rate)
+                        exit_price = max(o.stop, open_[i]) * (1 + self.p.slippage_rate)
                         reason = "stop"
                     elif low[i] <= o.target:
                         exit_price = o.target
@@ -185,6 +194,7 @@ class Backtester:
                         result, open_pos, exit_price, reason, i, balance
                     )
                     open_pos = None
+                    closed_this_bar = True
 
             # --- 2) Pending emirler: süre / fill / iptal ---
             still_pending: list[PendingOrder] = []
@@ -211,7 +221,16 @@ class Backtester:
                     )
                     fill_price = o.entry
                     fee_rate = self.p.maker_fee
-                if filled and open_pos is None:
+                if filled and open_pos is None and not closed_this_bar:
+                    # geometri: dolum stopun doğru tarafında olmalı
+                    bad_geom = (
+                        fill_price <= o.stop if o.side == "long"
+                        else fill_price >= o.stop
+                    )
+                    if bad_geom:
+                        result.invalid_geometry_orders += 1
+                        result.cancelled_orders += 1
+                        continue
                     real_risk = abs(fill_price - o.stop)
                     if real_risk <= 0:
                         result.cancelled_orders += 1
@@ -234,11 +253,13 @@ class Backtester:
                         balance = self._close(
                             result, pos, exit_price, "stop", i, balance
                         )
+                        closed_this_bar = True
                     else:
                         open_pos = pos
                     continue  # fill oldu (veya aynı bar stop) → pending'den çık
-                if filled and open_pos is not None:
-                    # Pozisyon doluyken gelen fill'i almayız (tek pozisyon kuralı)
+                if filled and (open_pos is not None or closed_this_bar):
+                    # Pozisyon doluyken (veya bu barda kapandıysa) fill almayız
+                    # (tek pozisyon kuralı; bar içi çıkışı bilerek yer açmak lookahead)
                     result.cancelled_orders += 1
                     continue
 
@@ -299,7 +320,7 @@ class Backtester:
         result.trades.append(
             ClosedTrade(
                 side=o.side,
-                entry=o.entry,
+                entry=ep,   # gerçek dolum fiyatı (sinyal fiyatı meta'da)
                 stop=o.stop,
                 target=o.target,
                 exit_price=exit_price,
@@ -310,7 +331,7 @@ class Backtester:
                 pnl_r=pnl_r,
                 risk_amount=pos.risk_amount,
                 position_size=pos.position_size,
-                meta=o.meta,
+                meta={**o.meta, "signal_entry": o.entry},
             )
         )
         return balance
