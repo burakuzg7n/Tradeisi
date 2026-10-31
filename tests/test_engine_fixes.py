@@ -210,3 +210,68 @@ def test_trade_entry_is_real_fill_price():
     t = r.trades[0]
     assert t.entry == pytest.approx(104.0)
     assert t.meta["signal_entry"] == 105.0
+
+
+def test_short_market_fill_beyond_target_costs_are_exact():
+    bars = [
+        (99, 100, 98, 99),
+        (85, 86, 84, 85),      # open=85 <= target=90 (short)
+        (85, 86, 84, 85),
+    ]
+    o = _order(side="short", entry=99.0, stop=105.0, target=90.0,
+               created_idx=0, expiry_idx=2)
+    bt = _costly_bt()
+    r = bt.run(make_df(bars), [o])
+    assert len(r.trades) == 1 and r.gap_target_exits == 1
+    t = r.trades[0]
+    size = 10_000 * bt.p.risk_per_trade / 6.0
+    fill = 85 * 0.999
+    exit_px = 85 * 1.001
+    assert t.exit_reason == "gap_target"
+    assert t.pnl_usd == pytest.approx(
+        _expected_pnl("short", size, fill, exit_px, 0.001, 0.001))
+
+
+def test_short_limit_gap_through_stop_costs_are_exact():
+    bars = [
+        (95, 96, 94, 95),
+        (110, 111, 109, 110),  # short limit 100, stop 105; bar 110'da açıldı
+        (110, 111, 109, 110),
+    ]
+    o = _order(side="short", market=False, entry=100.0, stop=105.0, target=90.0,
+               created_idx=0, expiry_idx=2, cancel_beyond=1e18)
+    bt = _costly_bt()
+    r = bt.run(make_df(bars), [o])
+    assert len(r.trades) == 1 and r.gap_stopouts == 1
+    t = r.trades[0]
+    size = 10_000 * bt.p.risk_per_trade / 5.0
+    exit_px = 110 * 1.001
+    assert t.entry == pytest.approx(110.0)
+    assert t.pnl_usd == pytest.approx(
+        _expected_pnl("short", size, 110.0, exit_px, 0.0005, 0.001))
+
+
+def test_short_market_entry_bar_target_touch_is_counted():
+    bars = [
+        (100, 101, 99, 100),
+        (100, 101, 89, 90),    # açılışta short dolar; low 89 <= target 90; high 101 < stop 105
+        (90, 91, 89, 90),
+    ]
+    o = _order(side="short", entry=100.0, stop=105.0, target=90.0,
+               created_idx=0, expiry_idx=2)
+    r = _bt().run(make_df(bars), [o])
+    assert len(r.trades) == 1
+    assert r.trades[0].exit_reason == "target"
+    assert r.trades[0].exit_idx == 1
+
+
+def test_short_market_entry_bar_stop_and_target_both_means_stop():
+    bars = [
+        (100, 101, 99, 100),
+        (100, 106, 89, 100),   # hem stop (106>=105) hem hedef (89<=90) -> STOP
+        (100, 101, 99, 100),
+    ]
+    o = _order(side="short", entry=100.0, stop=105.0, target=90.0,
+               created_idx=0, expiry_idx=2)
+    r = _bt().run(make_df(bars), [o])
+    assert r.trades[0].exit_reason == "stop"

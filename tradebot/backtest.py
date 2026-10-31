@@ -34,7 +34,7 @@ class ClosedTrade:
     stop: float
     target: float
     exit_price: float
-    exit_reason: str        # "stop" | "target"
+    exit_reason: str        # "stop" | "target" | "gap_target" (hedef ustunde gap dolum, hemen kapanis)
     entry_idx: int
     exit_idx: int
     pnl_usd: float
