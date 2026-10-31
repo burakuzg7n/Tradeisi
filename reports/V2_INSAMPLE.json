@@ -1,0 +1,368 @@
+{
+  "version": "V2",
+  "phase": "insample",
+  "run_utc": "2026-10-31T20:45:29+00:00",
+  "period": {
+    "start": "2020-01-01 00:00:00+00:00",
+    "end_exclusive": "2025-01-01 00:00:00+00:00"
+  },
+  "gates": {
+    "PF > 1.3": false,
+    "işlem >= 150": true,
+    "DD < %15": false
+  },
+  "gates_passed": false,
+  "verdict": "KALDI",
+  "combined": {
+    "total_trades": 490,
+    "profit_factor": 0.7964802778589553,
+    "max_drawdown": 0.22370830099916073,
+    "expectancy_r": -0.1427212025508705,
+    "win_rate": 0.3183673469387755,
+    "initial_total": 20000.0,
+    "final_total": 16690.723657269093,
+    "longs": 243,
+    "shorts": 247,
+    "forced_closes": 1,
+    "gap_stopouts": 0,
+    "gap_target_exits": 0,
+    "invalid_geometry_orders": 0,
+    "by_year": {
+      "2020": {
+        "trades": 83,
+        "net": -851.75,
+        "pf": 0.7246007737336945
+      },
+      "2021": {
+        "trades": 85,
+        "net": -1532.46,
+        "pf": 0.530924198048639
+      },
+      "2022": {
+        "trades": 90,
+        "net": -348.97,
+        "pf": 0.8771690415113967
+      },
+      "2023": {
+        "trades": 108,
+        "net": -911.62,
+        "pf": 0.7465933712931251
+      },
+      "2024": {
+        "trades": 124,
+        "net": 335.53,
+        "pf": 1.096919456589317
+      }
+    }
+  },
+  "per_symbol": {
+    "BTCUSDT": {
+      "total_trades": 268,
+      "win_rate": 0.3246,
+      "profit_factor": 0.807,
+      "expectancy_r": -0.1348,
+      "max_drawdown": 0.2586,
+      "sharpe": -0.71,
+      "final_balance": 8291.7,
+      "longs": 137,
+      "shorts": 131,
+      "cancelled_orders": 22,
+      "expired_orders": 0,
+      "invalid_geometry_orders": 0,
+      "gap_stopouts": 0,
+      "gap_target_exits": 0,
+      "forced_closes": 1,
+      "avg_win_r": 1.89,
+      "avg_loss_r": -1.108,
+      "session_expectancy_r": {
+        "london": -0.216,
+        "london_ny_overlap": -0.1
+      }
+    },
+    "ETHUSDT": {
+      "total_trades": 222,
+      "win_rate": 0.3108,
+      "profit_factor": 0.783,
+      "expectancy_r": -0.1523,
+      "max_drawdown": 0.2324,
+      "sharpe": -0.73,
+      "final_balance": 8399.02,
+      "longs": 106,
+      "shorts": 116,
+      "cancelled_orders": 11,
+      "expired_orders": 0,
+      "invalid_geometry_orders": 0,
+      "gap_stopouts": 0,
+      "gap_target_exits": 0,
+      "forced_closes": 0,
+      "avg_win_r": 1.922,
+      "avg_loss_r": -1.088,
+      "session_expectancy_r": {
+        "london": -0.274,
+        "london_ny_overlap": -0.088
+      }
+    }
+  },
+  "run_info": {
+    "BTCUSDT": {
+      "orders_generated": 290,
+      "orders_in_period": 290,
+      "period_first_bar": "2020-01-01 00:00:00+00:00",
+      "period_last_bar": "2024-12-31 23:45:00+00:00",
+      "period_bars": 175239
+    },
+    "ETHUSDT": {
+      "orders_generated": 233,
+      "orders_in_period": 233,
+      "period_first_bar": "2020-01-01 00:00:00+00:00",
+      "period_last_bar": "2024-12-31 23:45:00+00:00",
+      "period_bars": 175239
+    }
+  },
+  "data": {
+    "BTCUSDT": {
+      "ltf": {
+        "first": "2020-01-01 00:00:00+00:00",
+        "last": "2026-07-07 20:45:00+00:00",
+        "bars": 228315,
+        "missing_bars": 153,
+        "gap_count": 15,
+        "max_gap_bars": 23,
+        "gaps": [
+          {
+            "start": "2020-02-09 02:00:00+00:00",
+            "bars": 4
+          },
+          {
+            "start": "2020-02-19 11:45:00+00:00",
+            "bars": 23
+          },
+          {
+            "start": "2020-03-04 09:30:00+00:00",
+            "bars": 8
+          },
+          {
+            "start": "2020-04-25 02:00:00+00:00",
+            "bars": 10
+          },
+          {
+            "start": "2020-06-28 02:00:00+00:00",
+            "bars": 14
+          },
+          {
+            "start": "2020-11-30 06:00:00+00:00",
+            "bars": 4
+          },
+          {
+            "start": "2020-12-21 14:00:00+00:00",
+            "bars": 16
+          },
+          {
+            "start": "2020-12-25 02:00:00+00:00",
+            "bars": 4
+          },
+          {
+            "start": "2021-02-11 03:45:00+00:00",
+            "bars": 5
+          },
+          {
+            "start": "2021-03-06 02:00:00+00:00",
+            "bars": 6
+          },
+          {
+            "start": "2021-04-20 02:00:00+00:00",
+            "bars": 10
+          },
+          {
+            "start": "2021-04-25 04:15:00+00:00",
+            "bars": 18
+          },
+          {
+            "start": "2021-08-13 02:00:00+00:00",
+            "bars": 18
+          },
+          {
+            "start": "2021-09-29 07:00:00+00:00",
+            "bars": 8
+          },
+          {
+            "start": "2023-03-24 12:45:00+00:00",
+            "bars": 5
+          }
+        ]
+      },
+      "htf": {
+        "first": "2020-01-01 00:00:00+00:00",
+        "last": "2026-07-07 20:00:00+00:00",
+        "bars": 14279,
+        "missing_bars": 1,
+        "gap_count": 1,
+        "max_gap_bars": 1,
+        "gaps": [
+          {
+            "start": "2020-02-19 12:00:00+00:00",
+            "bars": 1
+          }
+        ]
+      },
+      "ltf_file_sha256": "4bbc0dbdc868d959144a64af04155793076515a71f003d5f7a40cfdeaa22362e",
+      "htf_file_sha256": "d234b536da59e7224cababe4a44e9acd42507fdbd272e6552f1e53a805f58ab1"
+    },
+    "ETHUSDT": {
+      "ltf": {
+        "first": "2020-01-01 00:00:00+00:00",
+        "last": "2026-07-07 20:45:00+00:00",
+        "bars": 228315,
+        "missing_bars": 153,
+        "gap_count": 15,
+        "max_gap_bars": 23,
+        "gaps": [
+          {
+            "start": "2020-02-09 02:00:00+00:00",
+            "bars": 4
+          },
+          {
+            "start": "2020-02-19 11:45:00+00:00",
+            "bars": 23
+          },
+          {
+            "start": "2020-03-04 09:30:00+00:00",
+            "bars": 8
+          },
+          {
+            "start": "2020-04-25 02:00:00+00:00",
+            "bars": 10
+          },
+          {
+            "start": "2020-06-28 02:00:00+00:00",
+            "bars": 14
+          },
+          {
+            "start": "2020-11-30 06:00:00+00:00",
+            "bars": 4
+          },
+          {
+            "start": "2020-12-21 14:00:00+00:00",
+            "bars": 16
+          },
+          {
+            "start": "2020-12-25 02:00:00+00:00",
+            "bars": 4
+          },
+          {
+            "start": "2021-02-11 03:45:00+00:00",
+            "bars": 5
+          },
+          {
+            "start": "2021-03-06 02:00:00+00:00",
+            "bars": 6
+          },
+          {
+            "start": "2021-04-20 02:00:00+00:00",
+            "bars": 10
+          },
+          {
+            "start": "2021-04-25 04:15:00+00:00",
+            "bars": 18
+          },
+          {
+            "start": "2021-08-13 02:00:00+00:00",
+            "bars": 18
+          },
+          {
+            "start": "2021-09-29 07:00:00+00:00",
+            "bars": 8
+          },
+          {
+            "start": "2023-03-24 12:45:00+00:00",
+            "bars": 5
+          }
+        ]
+      },
+      "htf": {
+        "first": "2020-01-01 00:00:00+00:00",
+        "last": "2026-07-07 20:00:00+00:00",
+        "bars": 14279,
+        "missing_bars": 1,
+        "gap_count": 1,
+        "max_gap_bars": 1,
+        "gaps": [
+          {
+            "start": "2020-02-19 12:00:00+00:00",
+            "bars": 1
+          }
+        ]
+      },
+      "ltf_file_sha256": "42874c4d440894588203a574957757532a6366add570709fe49bdc90ccfd6440",
+      "htf_file_sha256": "ce03955c689d34c53d2cfe932f19eff4f45fb689a54eee7374e9d8cbf10904ea"
+    }
+  },
+  "slice_hashes": {
+    "BTCUSDT": {
+      "ltf": "2b6e8d6bc26fe01a79b5ef1d63b91699ed7920555dd54902dbc4ef46e81ade01",
+      "htf": "c15e241e8220468ac34feaf429af0718778e6b9e0a3fee0c192fc493c927a9c8"
+    },
+    "ETHUSDT": {
+      "ltf": "e0c87f5720eda660c51a148664e155ebb2c7d0b0fa63c0b425ba2d0ac9c5a369",
+      "htf": "d77d5cd4a8cb8b31b334130ce2af2210314e93a6c9290f791786d0328c1b5703"
+    }
+  },
+  "code_fingerprint": "2066b50780f37120a246f91bda610a5e62bf17f278f212c301ea1616e3e581c5",
+  "protocol_config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "periods": {
+      "insample_start": "2020-01-01",
+      "insample_end_excl": "2025-01-01",
+      "holdout_start": "2025-01-01"
+    },
+    "strategy": {
+      "htf_timeframe": "4h",
+      "ltf_timeframe": "15m",
+      "htf_pivot": 3,
+      "ltf_pivot": 10,
+      "fvg_min_size_pct": 0.0005,
+      "fvg_fill_entry": 0.5,
+      "setup_window": 24,
+      "entry_window": 32,
+      "rr_target": 2.0,
+      "stop_buffer_pct": 0.001,
+      "min_risk_pct": 0.002,
+      "use_volume_filter": false,
+      "vol_spike_mult": 1.5,
+      "vol_ma_window": 20,
+      "use_session_filter": true,
+      "killzones_utc": [
+        [
+          7,
+          10
+        ],
+        [
+          13,
+          16
+        ]
+      ]
+    },
+    "backtest": {
+      "initial_balance": 10000.0,
+      "risk_per_trade": 0.005,
+      "maker_fee": 0.0002,
+      "taker_fee": 0.00055,
+      "slippage_rate": 0.0001,
+      "max_open_positions": 1
+    }
+  },
+  "git": {
+    "commit": "4e54362a20387242b0821a1dd71ece90bfc730cb",
+    "dirty": true
+  },
+  "env": {
+    "python": "3.10.12",
+    "pandas": "2.3.3",
+    "numpy": "2.2.6"
+  },
+  "insample_reference": null,
+  "integrity": "28e114d6c17ec54706c707156c9df8be6d660518b938b204bf483faeef160df1"
+}
