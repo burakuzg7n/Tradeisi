@@ -21,7 +21,12 @@ def generate_orders_v2(
     ltf_df: pd.DataFrame,
     htf_df: pd.DataFrame,
     params: StrategyParams = StrategyParams(),
+    trade_from_idx: int = 0,
 ) -> list[PendingOrder]:
+    """trade_from_idx: bu bardan ÖNCEKİ barlar yalnız GÖSTERGE ısınması içindir
+    (pivotlar/swing seviyeleri güncellenir); sweep/setup durumu oluşmaz ve hiçbir
+    swing seviyesi "tüketilmez". Böylece dönem, bekleyen setup olmadan başlar
+    (SPEC_EKLERI E3c). trade_from_idx=0 → eski davranış."""
     df = ltf_df
     n = len(df)
     high = df["high"].to_numpy(dtype=float)
@@ -48,6 +53,9 @@ def generate_orders_v2(
                 last_swing_low = sl[j]
             if not np.isnan(sh[j]):
                 last_swing_high = sh[j]
+
+        if i < trade_from_idx:
+            continue
 
         b = bias[i]
 

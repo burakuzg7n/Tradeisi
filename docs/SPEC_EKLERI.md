@@ -70,12 +70,29 @@ her biri **yeni başlangıç sermayesi** (V2: sembol başına 10.000 $; Plan B: 
 başlangıcından önce yoksa (ör. in-sample başı) E5'teki yeterli geçmiş şartı geçerli.
 Plan B'nin DD'si **ortak hesabın günlük kapanış mark-to-market equity**'si üzerinden
 hesaplanır (V2'deki iki-eğri toplamı yöntemi yalnız V2 içindir).
+*V2 uygulaması (netleştirme):* dönem öncesi barlarda yalnız pivot/swing seviyeleri
+güncellenir; sweep tespit edilmez, hiçbir swing seviyesi "tüketilmez" ve dönem
+öncesi bir sweep'e dayanan emir dönem içinde alınmaz. Dönem ilk barından itibaren
+normal akış işler.
 
 **E4 — Hold-out kapısı [KARAR].**
 §8: hold-out'ta "PF > 1,15 korunmalı". **Ekleme:** ayrıca DD < %15 şartı.
 İşlem sayısı raporlanır ama kapı değildir. *Gerekçe:* PF tek başına yeterli
 risk güvencesi vermez. **Dönem:** 2025-01-01 → verideki **son tam günün** sonu.
 Çalıştırma raporuna veri dosyasının son tarihi ve hash'i yazılır (tekrar üretilebilirlik).
+
+---
+
+**E10 — V2 veri boşlukları [KARAR].**
+V2 spesifikasyonunda eksik 15 dakikalık bar durumu tanımlı değildi. **Karar:** eksik
+barlar **doldurulmaz ve özel işlem görmez**; barlar ardışık kabul edilir (pencereler
+bar sayısıyla sayılır). Boşluklar çalıştırma raporunda listelenir.
+*Gerekçe ve sınır:* kullanılacak BTCUSDT/ETHUSDT verisinde 15 boşluk vardır (toplam
+153 eksik 15m bar = %0,07, en uzunu 23 bar ≈ 5,75 saat; 4h'de 1 eksik bar; hepsi
+2020–2023 arasında, aynı tarihlerde iki sembolde de). Bu boşluklar strateji
+çalıştırılmadan, yalnızca veri sağlık kontrolüyle görülmüştür. Boşluğu kapsayan
+bir setup veya pozisyonun gerçekte yaşanmamış bir fiyat sıçramasından geçmesi
+mümkündür; etkisi bu hacimde ihmal edilebilir kabul edilir ama **kanıtlanmış değildir**.
 
 ---
 
