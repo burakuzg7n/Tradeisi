@@ -31,8 +31,10 @@ geçerlidir.
 
 ## Bağlayıcı spesifikasyon belgeleri
 - `DEVIR_NOTU.md` §8 (V2) ve §9 (Plan B): strateji kuralları.
-- `docs/SPEC_EKLERI.md`: bu kuralların tek anlama bağlanmış yorumu (31 Ekim 2026,
-  veriye bakılmadan). Sonuç görüldükten sonra değiştirilemez; değişiklik = yeni versiyon.
+- `docs/SPEC_EKLERI.md` (31 Ekim 2026, veriye bakılmadan): [YORUM] maddeleri §8/§9'u
+  tek anlama bağlar; [KARAR] maddeleri Burak onaylı YENİ kural/sapmadır ve ilgili
+  §8/§9 ifadesini o noktada değiştirir. Sonuç görüldükten sonra değiştirilemez;
+  değişiklik = yeni versiyon.
 
 ## Rol dağılımı (öneri)
 - **Claude:** kod yazma, backtest, test koşma.

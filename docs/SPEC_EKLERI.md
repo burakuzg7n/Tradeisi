@@ -51,9 +51,25 @@ R raporlanır.
 - **Birleşik DD:** iki equity eğrisi ortak 15 dakikalık zaman ekseninde birleştirilir
   (eksik barda son değer taşınır); açık pozisyonlar mark-to-market; toplam equity
   üzerinden maksimum drawdown.
-- **Dönem sonu:** açık pozisyon son kapanıştan, maliyetler dahil **zorla kapatılır**
-  ve işlem sayısına dahil edilir.
 - **Birleşik kapı:** PF > 1,3 VE işlem sayısı ≥ 150 (iki sembol toplamı) VE DD < %15.
+
+**E3b — Dönem sonu tasfiyesi (V2 ve Plan B) [KARAR].**
+§8/§9'da tanımlı değildi. **Karar:** her dönemin (in-sample ve hold-out ayrı ayrı)
+SON barının kapanışında açık kalan pozisyonlar, o kapanış fiyatından, **aleyhe
+slippage ve taker ücretle** zorla kapatılır ve işlem sayısına dahil edilir. Dönem
+sonunda bekleyen (henüz tetiklenmemiş) V2 setup'ları iptal edilir.
+*Gerekçe:* dönem sonunda açık kalan işlemin gerçekleşmemiş PnL'sini PF/DD dışında
+bırakmak sonucu çarpıtır.
+
+**E3c — Dönem başlangıç durumu (V2 ve Plan B) [KARAR].**
+§8/§9'da tanımlı değildi. **Karar:** in-sample ve hold-out ayrı ayrı çalıştırılır;
+her biri **yeni başlangıç sermayesi** (V2: sembol başına 10.000 $; Plan B: ortak
+10.000 $), **boş pozisyon** ve **bekleyen setup olmadan** başlar. Göstergeler
+(HTF yapı/bias, kanallar, ATR) önceki dönemin verisiyle **ısınmış** olarak başlar
+(hold-out'un ilk gününde 2024 verisi kullanılabilir). Veri dosyası dönemin
+başlangıcından önce yoksa (ör. in-sample başı) E5'teki yeterli geçmiş şartı geçerli.
+Plan B'nin DD'si **ortak hesabın günlük kapanış mark-to-market equity**'si üzerinden
+hesaplanır (V2'deki iki-eğri toplamı yöntemi yalnız V2 içindir).
 
 **E4 — Hold-out kapısı [KARAR].**
 §8: hold-out'ta "PF > 1,15 korunmalı". **Ekleme:** ayrıca DD < %15 şartı.
@@ -69,11 +85,15 @@ risk güvencesi vermez. **Dönem:** 2025-01-01 → verideki **son tam günün** 
 - Giriş kanalı: **önceki 55 günün en yüksek HIGH**'ı (bugün hariç).
 - Çıkış kanalı: **önceki 20 günün en düşük LOW**'u (bugün hariç).
 - "Gün" = UTC günü (00:00 UTC açılışlı günlük bar). "55 gün" = **55 mevcut günlük
-  bar**; eksik bar varsa o sembol o gün için işlem yapmaz.
+  bar**.
 - Sinyal günlük **kapanışta** (close > giriş kanalı; close < çıkış kanalı),
   işlem **ertesi günün açılışında** market (taker + aleyhe slippage).
 - Yeterli geçmiş (55 bar) oluşmadan sembol için **işlem yapılmaz**; başlangıçta
   kısa pencere kullanılmaz.
+
+**E5b — Eksik veri günü [KARAR].**
+Bir sembolün o günkü barı eksikse o sembol o gün için **sinyal üretmez ve işlem
+yapmaz**. Eksik bar sayısı çalıştırma raporunda sembol başına belirtilir.
 
 **E6 — Stop ve ATR [YORUM].**
 - Stop = **gerçek dolum fiyatı − 2 × ATR(20)**; ATR: Wilder, **sinyal gününün** değeri.
@@ -85,17 +105,26 @@ risk güvencesi vermez. **Dönem:** 2025-01-01 → verideki **son tam günün** 
   Kanal çıkışı sinyal gününün kapanışında verilir, ertesi açılışta market (taker +
   slippage) yapılır.
 
-**E7 — Portföy [YORUM].**
-- **Ortak sermaye: başlangıç 10.000 $.** Pozisyon başına risk %0,5, giriş anındaki
-  ortak **gerçekleşmiş bakiye** üzerinden (equity değil; motorla aynı).
-- Aynı anda **en fazla 2** pozisyon.
-- Her günün açılışında sıra: (1) kanal çıkışları, (2) yeni girişler.
-  Kanal çıkışıyla o açılışta boşalan kontenjan aynı açılışta kullanılabilir.
-  Gün içi stop ile kapanan kontenjan **ertesi güne** kalır (bar içi sıra bilinmez).
-- Boş kontenjan sayısından fazla sinyal varsa **sabit öncelik sırası: BTC, ETH,
-  SOL, BNB**; sığmayan sinyal o gün için **iptal** olur (ertelenmez).
-- Aynı sembole ek giriş (piramitleme) yok. Veri geçmişi başlamamış sembol, E5'teki
-  yeterli geçmiş şartı sağlandığı günden itibaren dahildir.
+**E7 — Portföy: yorum kısmı [YORUM].**
+- Tek **ortak hesap**; pozisyon başına risk %0,5, boyut = açılış öncesi
+  **gerçekleşmiş bakiye** × %0,5 ÷ risk mesafesi (equity değil; motorla aynı).
+  Giriş ücreti PnL'ye pozisyon **kapanışında** işlenir; bakiye yalnız kapanışlarda
+  değişir. Aynı açılışta iki giriş yapılırsa ikisi de **aynı** (açılış öncesi)
+  bakiyeden boyutlandırılır.
+- Aynı anda **en fazla 2** pozisyon. Aynı sembole ek giriş (piramitleme) yok.
+
+**E7b — Portföy: yeni yürütme kuralları [KARAR].**
+§9'da tanımlı değildi. **Karar:**
+- Başlangıç sermayesi **10.000 $**.
+- Eşzamanlı sinyallerde **sabit öncelik sırası: BTC, ETH, SOL, BNB**; boş kontenjana
+  sığmayan sinyal o gün için **iptal** olur (ertelenmez).
+- Açılış sırası: (1) **kanal çıkışları** (önceki kapanışta kararlaştırılmış), (2) yeni
+  girişler. Kanal çıkışıyla o açılışta boşalan kontenjan **aynı açılışta** kullanılabilir.
+- **Stop ile kapanan** her pozisyonun (gün içi stop **veya açılışta gap stop**)
+  kontenjanı **ertesi güne** kalır. Gerekçe: stop o gün keşfedilir, önceden
+  verilebilecek bir karar değildir; bar içi sıra bilinmez (motor kuralıyla tutarlı).
+- Veri geçmişi başlamamış sembol, E5'teki yeterli geçmiş şartı sağlandığı günden
+  itibaren dahildir.
 
 **E8 — Funding [KARAR].**
 §9'da funding tanımlı değildi. **Ekleme:** uzun pozisyonlara sabit **%0,03 / UTC günü**
