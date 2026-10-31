@@ -10,6 +10,8 @@ Muhafazakâr varsayımlar (backtest her zaman gerçekten KÖTÜ olmalı, iyi de�
 - Tek pozisyon: bir pozisyonun KAPANDIĞI barda yeni fill alınmaz (barın başında
   pozisyon hâlâ açıktı; bar içi çıkışı bilip yer açmak lookahead olur).
 - Stop gap: bar stopun ötesinde açılırsa çıkış açılış fiyatından (stop'tan değil).
+- liquidate_at_end=True (V2 protokolü): dönem sonunda açık pozisyon zorla
+  kapatılır (reason="period_end", taker + aleyhe slippage).
 - Gap stopu veya hedefi geçerse (dolum stopun/hedefin ötesinde): işlem GERÇEKLEŞİR
   ve aynı barda hemen kapanır, giriş+çıkış ücreti ve slippage ödenir
   (gap_stopouts / gap_target_exits). Çıkış slippage'i ham açılıştan. Market emir açılışta dolduğu için, stop vurulmamışsa
@@ -34,7 +36,7 @@ class ClosedTrade:
     stop: float
     target: float
     exit_price: float
-    exit_reason: str        # "stop" | "target" | "gap_target" (hedef ustunde gap dolum, hemen kapanis)
+    exit_reason: str        # "stop" | "target" | "gap_target" | "period_end" (donem sonu tasfiyesi)
     entry_idx: int
     exit_idx: int
     pnl_usd: float
@@ -57,6 +59,7 @@ class BacktestResult:
     invalid_geometry_orders: int = 0
     gap_stopouts: int = 0
     gap_target_exits: int = 0
+    forced_closes: int = 0
 
     # --- metrikler ---
     @property
@@ -128,6 +131,7 @@ class BacktestResult:
             "invalid_geometry_orders": self.invalid_geometry_orders,
             "gap_stopouts": self.gap_stopouts,
             "gap_target_exits": self.gap_target_exits,
+            "forced_closes": self.forced_closes,
             "avg_win_r": round(
                 float(np.mean([t.pnl_r for t in self.wins])), 3
             ) if self.wins else 0.0,
@@ -154,7 +158,12 @@ class Backtester:
     def __init__(self, params: BacktestParams = BacktestParams()):
         self.p = params
 
-    def run(self, df: pd.DataFrame, orders: list[PendingOrder]) -> BacktestResult:
+    def run(
+        self,
+        df: pd.DataFrame,
+        orders: list[PendingOrder],
+        liquidate_at_end: bool = False,
+    ) -> BacktestResult:
         open_ = df["open"].to_numpy(dtype=float)
         high = df["high"].to_numpy(dtype=float)
         low = df["low"].to_numpy(dtype=float)
@@ -344,6 +353,19 @@ class Backtester:
                 else:
                     eq += (ep - close[i]) * open_pos.position_size
             equity[i] = eq
+
+        # Dönem sonu tasfiyesi (SPEC_EKLERI E3b): açık pozisyon son barın kapanışından,
+        # aleyhe slippage + taker ücretle zorla kapatılır ve işlem sayısına dahil edilir.
+        if liquidate_at_end and open_pos is not None and n > 0:
+            o = open_pos.order
+            slip = self.p.slippage_rate
+            exit_price = close[-1] * (1 - slip if o.side == "long" else 1 + slip)
+            balance = self._close(
+                result, open_pos, exit_price, "period_end", n - 1, balance
+            )
+            result.forced_closes += 1
+            equity[n - 1] = balance
+            open_pos = None
 
         result.equity_curve = pd.Series(equity, index=df.index).ffill().fillna(
             self.p.initial_balance

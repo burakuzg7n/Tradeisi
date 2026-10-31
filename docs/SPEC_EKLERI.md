@@ -79,6 +79,19 @@ risk güvencesi vermez. **Dönem:** 2025-01-01 → verideki **son tam günün** 
 
 ---
 
+**E10 — V2 veri boşlukları [KARAR].**
+V2 spesifikasyonunda eksik 15 dakikalık bar durumu tanımlı değildi. **Karar:** eksik
+barlar **doldurulmaz ve özel işlem görmez**; barlar ardışık kabul edilir (pencereler
+bar sayısıyla sayılır). Boşluklar çalıştırma raporunda listelenir.
+*Gerekçe ve sınır:* kullanılacak BTCUSDT/ETHUSDT verisinde 15 boşluk vardır (toplam
+153 eksik 15m bar = %0,07, en uzunu 23 bar ≈ 5,75 saat; 4h'de 1 eksik bar; hepsi
+2020–2023 arasında, aynı tarihlerde iki sembolde de). Bu boşluklar strateji
+çalıştırılmadan, yalnızca veri sağlık kontrolüyle görülmüştür. Boşluğu kapsayan
+bir setup veya pozisyonun gerçekte yaşanmamış bir fiyat sıçramasından geçmesi
+mümkündür; etkisi bu hacimde ihmal edilebilir kabul edilir ama **kanıtlanmış değildir**.
+
+---
+
 ## Plan B
 
 **E5 — Kanallar ve veri [YORUM].**

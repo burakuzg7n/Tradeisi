@@ -1,0 +1,6 @@
+# Satir sonu: Windows/Linux farki "modified" gurultusu uretmesin
+* text=auto
+*.bat text eol=crlf
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
