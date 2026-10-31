@@ -1,6 +1,6 @@
 # AGENTS.md — Bu repoda çalışan tüm yapay zekâlar için kurallar
 
-Bu dosya Claude, ChatGPT, Gemini ve diğer tüm asistanlar için TEK ortak kural
+Bu dosya Claude, ChatGPT ve diğer tüm asistanlar için TEK ortak kural
 setidir. Çalışmaya başlamadan önce bu dosyayı, `DEVIR_NOTU.md`'yi ve
 `reports/YILLIK_ANALIZ.md`'yi oku.
 
@@ -31,12 +31,13 @@ geçerlidir.
 
 ## Rol dağılımı (öneri)
 - **Claude:** kod yazma, backtest, test koşma.
-- **ChatGPT:** bağımsız kod/mantık incelemesi (lookahead, hatalı varsayım avı).
-- **Gemini:** rapor ve doküman kontrolü, sonuçları kapı kriterlerine karşı doğrulama.
+- **ChatGPT:** bağımsız kod/mantık incelemesi (lookahead, hatalı varsayım avı),
+  rapor ve doküman kontrolü, sonuçları kapı kriterlerine karşı doğrulama.
+- Gemini şu an projede YOK (pasif). Gerekirse sonra eklenir.
 
 ## Dal (branch) düzeni
 - `main`: yalnız onaylı ve testten geçmiş kod.
-- Her asistan kendi dalında çalışır: `claude/...`, `chatgpt/...`, `gemini/...`.
+- Her asistan kendi dalında çalışır: `claude/...`, `chatgpt/...`.
 - Değişiklik Pull Request ile girer; Burak karar verir.
 
 ## Teknik notlar
