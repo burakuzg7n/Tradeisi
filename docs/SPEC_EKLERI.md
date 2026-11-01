@@ -181,3 +181,81 @@ bağımsız değildir**; geçmesi zayıf kanıttır. Asıl bağımsız doğrulam
 ## Altyapı notu (kural değil, iş listesi)
 Plan B çalıştırılmadan önce motora eklenmesi gerekenler: funding (E8), günlük bar
 akışı, ortak sermayeli çoklu sembol portföyü (E7), dönem sonu zorla kapanış (E3).
+
+---
+
+## Plan B v1 ekleri (E11–E14)
+
+**Tarih:** 1 Kasım 2026 · **Onaylayan:** Burak · **Hazırlayan:** Claude
+**Kaynak:** ChatGPT'nin Plan B uygulama planı denetimi (31 Ekim 2026).
+**Zaman ve statü (dürüstlük):** Bu bölüm **V2 in-sample sonucu görüldükten SONRA**
+(commit `52239d7`, V2 KALDI), ama **hiçbir Plan B sonucu, Plan B strateji koşusu
+veya Plan B performans rakamı görülmeden ÖNCE** yazılmıştır. Yukarıdaki
+metin değiştirilmemiştir; bu maddeler yalnızca orada tanımsız kalan durumları
+bağlar. Hepsi **[KARAR]**'dır ve **Plan B v1** sürümüne aittir. Plan B v1 tek
+atışı = `DEVIR_NOTU.md` §9 + E3b, E3c, E5–E9 + E11–E14. Plan B sonucu görüldükten
+sonra yapılacak her değişiklik = Plan B.1 + yeni tek atış.
+
+**E11 — Kanal çıkışı ile gap stop aynı açılışta [KARAR].**
+E6 ve E7b bu kesişimi tanımlamıyordu. **Karar:** önceki günün kapanışında kanal
+çıkışı verilmiş bir pozisyonda, ertesi günün açılışı stopun ötesinde (altında) olsa
+bile çıkış **kanal çıkışı** sayılır:
+- Çıkış fiyatı = açılış × (1 − slippage), taker ücret (gap stop ile aynı fiyat).
+- Kapanış sebebi `channel_exit`'tir; E7b'deki "kanal çıkışıyla boşalan kontenjan aynı
+  açılışta kullanılabilir" kuralı uygulanır.
+- Bu durumun kaç kez yaşandığı raporda ayrıca sayılır (`channel_exit_through_stop`).
+*Gerekçe:* çıkış kararı önceki kapanışta, açılıştan önce verilmiştir; stop o açılışta
+"keşfedilmemiştir". Önceden kanal çıkışı verilmemiş bir pozisyonda açılış stopun
+ötesindeyse E6/E7b aynen geçerlidir (gap stop, kontenjan ertesi güne).
+
+**E12 — Eksik günde açık pozisyonun değerlemesi [KARAR].**
+E3c ve E5b bunu tanımlamıyordu. **Karar:** ortak hesabın günlük kapanış equity'si
+hesaplanırken, o gün barı olmayan bir sembolün açık pozisyonu **o sembolün son
+mevcut kapanış fiyatıyla** değerlenir. O gün DD hesabından **çıkarılmaz**. Funding
+E8'e göre her UTC günü sayılmaya devam eder. Bu şekilde değerlenen gün sayısı
+sembol başına raporlanır. Portföy takvimi, en az bir sembolün barı olan UTC
+günlerinden oluşur.
+
+**E13 — Ortak dönem bitişi [KARAR].**
+E4/E5b/E9 sembollerin son tam günleri farklıysa ortak bitişi tanımlamıyordu.
+**Karar:**
+- **Hold-out bitişi** = sembollerin her birinin **son tam UTC gününün en erkeni**
+  (ortak bitiş). O günün kapanışında **tüm** açık pozisyonlar E3b'ye göre tasfiye
+  edilir; bu günden sonraki veri kullanılmaz.
+- **In-sample bitişi** sabittir: 2024-12-31 (dahil). Bu tarihe kadar verisi olmayan
+  bir sembol varsa koşu engellenir (E14).
+- E5b'deki "sembolün kendi son mevcut barında tasfiye" hükmü yalnız dönemin
+  **içinde** verisi kesilen sembol için geçerlidir; ortak bitişten önce tüm
+  sembollerin son barı ortak bitiş gününe denk gelir.
+
+**E14 — Veri kaynağı ve veri engelleri [KARAR].**
+§9 "USDT perp, günlük bar" diyordu; kaynak ve eşikler tanımsızdı. **Karar:**
+- **Kaynak:** Binance USDⓈ-M Futures, sözleşme tipi **PERPETUAL**, semboller
+  BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT; **son işlem fiyatı** OHLC (mark/index fiyatı
+  değil), **1 günlük** mum, 00:00 UTC açılışlı.
+- **Kapsam:** her sembol için sözleşmenin **ilk mevcut gününden** itibaren indirilir.
+  Dönem başlangıcından önceki veri yalnız ısınma içindir (E3c); in-sample başında
+  BTC/ETH için 2019 verisi kanal/ATR ısınmasında kullanılır.
+- **Listeleme öncesi** günler eksik sayılmaz. Listeleme sonrası boşluklar sembol
+  başına ayrı raporlanır.
+- **Koşu engelleri** (bunlardan biri varsa koşu başlamaz, kilit alınmaz):
+  1. Bir sembolde, listeleme sonrası dönem içi beklenen günlerin **%1'inden fazlası**
+     eksik.
+  2. Bozuk bar: aynı zaman damgası iki kez, sıfır/negatif fiyat, high < low,
+     open veya close'un [low, high] dışında olması.
+  3. In-sample'da bir sembolün verisi 2024-12-31'e ulaşmıyor (o sembol bu tarihten
+     önce listelenmişse).
+- V2'nin %99 kapsam eşiği Plan B'ye **aktarılmaz**; Plan B eşikleri yalnız bu
+  maddedir.
+*Gerekçe:* eşikler hiçbir Plan B verisi indirilmeden ve sonuç görülmeden sabitlenir.
+
+### Plan B uygulama kontrolleri (kural değil, iş listesi)
+- Veri PR'ı: indirme betiği + veri sağlık raporu (listeleme günü, boşluklar, bozuk bar
+  kontrolü). Geliştirme sırasında gerçek veride **performans koşusu yapılmaz**.
+- Motor ve strateji PR'ları: E6, E7, E7b, E8, E11, E12, E13 için sayısal beklenen
+  sonuçlu sentetik testler; en az: giriş gününde stop, kanal çıkışından sonra aynı
+  açılışta giriş, iki girişin aynı bakiyeden boyutlanması, eksik günler boyunca
+  funding, kanal çıkışı + gap stop kesişimi, eksik günde değerleme.
+- Koşucu PR'ı: değişmiş dosya listesi (staged, unstaged, untracked) **kilit ve rapor
+  oluşturulmadan önce** alınır ve rapora yazılır; parmak izi yeni portföy motorunu,
+  Plan B stratejisini ve protokol bağımlılıklarını kapsar.
