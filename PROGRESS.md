@@ -1,6 +1,21 @@
 # TradeBot — İlerleme Takibi
 
-Başlangıç: 24 Haziran 2026 · Son güncelleme: 6 Temmuz 2026
+Başlangıç: 24 Haziran 2026 · Son güncelleme: 1 Kasım 2026
+
+## Güncel durum (1 Kasım 2026)
+
+**V1, V2 ve Plan B v1 REDDEDİLDİ.** Paper/testnet aşamasına geçilmez. Yeni araştırma
+Burak'ın kararını bekliyor: `docs/SONRAKI_YON_KARAR_NOTU.md`.
+
+| Tarih | Olay | Kayıt |
+|---|---|---|
+| 31 Eki 2026 | Proje GitHub'a taşındı; ChatGPT bağımsız denetim akışı; motor düzeltmeleri, SPEC_EKLERI (PR #1–#3) | PR #1–#3 |
+| 31 Eki 2026 | V2 tek atış koşucusu (PR #4) ve in-sample koşusu: **KALDI** (PF 0,796; DD %22,37; 490 işlem) | `reports/V2_INSAMPLE.*`, `52239d7` |
+| 1 Kas 2026 | Plan B v1 ekleri E11–E17, günlük perp verisi + sağlık raporu (VERİ UYGUN), portföy motoru, sinyaller, koşucu (PR #5–#9) | `reports/PLANB_VERI_SAGLIK.*`, `b340ae5` |
+| 1 Kas 2026 | Plan B v1 in-sample koşusu: **KALDI** (işlem 37 < 100; DD %20,36 > %15; PF 5,93) | `reports/PLANB_INSAMPLE.*`, `6c5ed47` |
+
+Okuma notları (yıllık tablo kapanış yılına göre; kontenjan iptalleri bağımsız fırsat
+sayısı değil) ve denetimin kapsamı/sınırları: `DEVIR_NOTU.md` §0 ve karar notu §4.
 
 ## 90 Günlük Plan
 
@@ -9,9 +24,9 @@ Başlangıç: 24 Haziran 2026 · Son güncelleme: 6 Temmuz 2026
 | 1-14  | Eğitim ve Knowledge Base | ✅ Tamamlandı (+ 6 Tem: 9 dosyada hata düzeltildi) |
 | 15-30 | Strateji ve Pine Script | ✅ Tamamlandı (6 Tem) |
 | 31-45 | Backtest | ✅ TAMAMLANDI (8 Tem): 6.5 yıl, 800+ işlem → **STRATEJİ V1 REDDEDİLDİ** (PF 0.78-0.82, ban kriteri). reports/YILLIK_ANALIZ.md |
-| 46-60 | Paper Trading | 🔶 Altyapı hazır (webhook+journal); backtest onayı bekliyor |
+| 46-60 | Paper Trading | ⛔ Geçilmedi: V1, V2, Plan B v1 backtest kapılarında reddedildi (1 Kas 2026) |
 | 61-75 | Risk Engine ve Journal | ✅ Kod tamamlandı (6 Tem) |
-| 76-90 | FastAPI, CCXT, Testnet | 🔶 Kod hazır; testnet koşusu bekliyor |
+| 76-90 | FastAPI, CCXT, Testnet | 🔶 Kod mevcut; kapıları geçen strateji olmadığı için testnet koşusu yok |
 
 ## 6 Temmuz 2026 — Yapılanlar
 
