@@ -9,6 +9,7 @@ TEK ATIŞ KURALLARI (kod ile zorlanır):
 - Kilit, TÜM doğrulamalar geçtikten sonra ve koşudan ÖNCE atomik olarak alınır.
 - Git durumu (staged, unstaged, untracked) kilit ve rapor oluşmadan ÖNCE kaydedilir.
 - Parametreler sabittir (portfolio_b.PlanBParams, strategy_b sabitleri); optimize edilmez.
+- Parmak izi: kod dosyaları + SPEC_EKLERI.md + DEVIR_NOTU.md'nin yalnız §9 metni.
 
 Veri: data/{SEMBOL}_1d.csv. Dosyaların sha256'sı reports/PLANB_VERI_SAGLIK.json'daki
 değerlerle AYNI olmalı; E14 engelleri koşu anında yeniden hesaplanır.
@@ -86,12 +87,30 @@ def _day(s: str) -> int:
 
 
 # ----------------------------------------------------------------- parmak izi / git
+SPEC_SECTION_FILE = "DEVIR_NOTU.md"
+
+
+def spec_section_text(root: Path = ROOT) -> str:
+    """DEVIR_NOTU.md'deki bağlayıcı §9 metni ('## 9.' başlığından sonraki '## ' başlığına
+    kadar), satır sonları ve satır sonu boşlukları normalize edilmiş. Dosyanın geri kalanı
+    (ilerleme notları) parmak izine girmez."""
+    text = (root / SPEC_SECTION_FILE).read_text(encoding="utf-8").replace("\r\n", "\n")
+    lines = text.split("\n")
+    start = next((i for i, l in enumerate(lines) if l.startswith("## 9.")), None)
+    if start is None:
+        raise ProtocolError("DEVIR_NOTU.md içinde '## 9.' bölümü bulunamadı.")
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return "\n".join(l.rstrip() for l in lines[start:end]).strip() + "\n"
+
+
 def code_fingerprint(root: Path = ROOT) -> str:
     h = hashlib.sha256()
     for rel in _FINGERPRINT_FILES:
         f = root / rel
         h.update(rel.encode())
         h.update(_norm_bytes(f))
+    h.update(b"DEVIR_NOTU.md#9")
+    h.update(spec_section_text(root).encode("utf-8"))
     return h.hexdigest()
 
 
@@ -152,17 +171,22 @@ def load_and_check_data(data_dir: Path, report_dir: Path, symbols) -> tuple[dict
 
 
 # ----------------------------------------------------------------- metrikler / kapılar
-def capital_exhausted(res: PBResult, initial: float) -> bool:
-    """E16: gerçekleşmiş bakiye dönem içinde ≤ 0 oldu mu (işlem kapanış sırasıyla)."""
-    bal = initial
-    for t in sorted(res.trades, key=lambda t: t.exit_day):
-        bal += t.pnl
-        if bal <= 0:
-            return True
-    return res.counters.get("entries_blocked_no_capital", 0) > 0
+def capital_exhausted(res: PBResult) -> bool:
+    """E16: dönem içinde herhangi bir AÇILIŞ ÖNCESİ gerçekleşmiş bakiye ≤ 0 oldu mu.
+    Aynı açılıştaki kapanışların işlenme sırasına bağlı ara bakiyeler dikkate alınmaz."""
+    return res.counters.get("days_no_capital_before_open", 0) > 0
 
 
-def metrics(res: PBResult, p: PlanBParams) -> dict:
+def e13_liquidations(res: PBResult, period_end: int) -> dict:
+    """E3b/E13 tasfiyeleri: tümü ve ortak bitişten ÖNCE (eksik bitiş barı) yapılanlar."""
+    pe = [t for t in res.trades if t.reason == "period_end"]
+    row = lambda t: {"symbol": t.symbol, "day": str(dd.day_date(t.exit_day)),
+                     "price": t.exit, "pnl": t.pnl}
+    return {"all": [row(t) for t in pe],
+            "early_missing_end_bar": [row(t) for t in pe if t.exit_day < period_end]}
+
+
+def metrics(res: PBResult, p: PlanBParams, period_end: int) -> dict:
     tr = res.trades
     by_year, by_sym, reasons = {}, {}, {}
     for t in tr:
@@ -190,7 +214,8 @@ def metrics(res: PBResult, p: PlanBParams) -> dict:
         "total_fees": sum(t.entry_fee + t.exit_fee for t in tr),
         "total_funding": sum(t.funding for t in tr),
         "exit_reasons": reasons,
-        "capital_exhausted": capital_exhausted(res, p.initial_balance),
+        "capital_exhausted": capital_exhausted(res),
+        "period_end_liquidations": e13_liquidations(res, period_end),
         "counters": res.counters,
         "missing_day_valuations": res.missing_day_valuations,
         "by_year": by_year,
@@ -303,7 +328,7 @@ def run_protocol(phase: str, data_dir: Path, report_dir: Path,
 
     frames = {s: sb.compute_signals(daily[s][daily[s].index <= end]) for s in symbols}
     res = run_portfolio(frames, start, end, p, priority=symbols)
-    m = metrics(res, p)
+    m = metrics(res, p, end)
     verdict = evaluate(m, phase, gates_ins if phase == "insample" else gates_ho)
 
     report = {
@@ -352,6 +377,9 @@ def render_markdown(r: dict) -> str:
           f"- Çıkış sebepleri: {m['exit_reasons']}",
           f"- Sayaçlar: {m['counters']}",
           f"- Eksik günde değerleme (E12): {m['missing_day_valuations']}",
+          f"- Dönem sonu tasfiyeleri (E3b/E13): {m['period_end_liquidations']['all']}",
+          f"- Ortak bitişten ÖNCE tasfiye (bitiş barı eksik, E13): "
+          f"{m['period_end_liquidations']['early_missing_end_bar'] or 'yok'}",
           "", "## Yıl bazında (kapanış yılı; bilgi amaçlı, kapı değil)",
           "| Yıl | İşlem | PF | Net $ |", "|---|---:|---:|---:|"]
     for y in sorted(m["by_year"]):

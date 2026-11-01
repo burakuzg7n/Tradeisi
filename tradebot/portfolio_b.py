@@ -48,7 +48,9 @@ bunu görür. Son barda yeni çıkış/giriş emri üretilmez; bekleyen emirler 
 iptal olur. Not: "son mevcut bar" dönem sonu verisiyle belirlenir (E13 tanımı).
 
 Sermaye tükenmesi (E16): açılış öncesi gerçekleşmiş bakiye <= 0 ise yeni giriş yapılmaz
-(entries_blocked_no_capital); açık pozisyonlar kurallarına göre kapanır. Hesaplanan
+(entries_blocked_no_capital); açık pozisyonlar kurallarına göre kapanır. Bu durumun
+yaşandığı takvim günleri days_no_capital_before_open ile sayılır (aynı açılış içindeki
+ara bakiyeler DEĞİL, yalnız açılış öncesi bakiye; E16 metni). Hesaplanan
 miktar pozitif ve sonlu değilse giriş yapılmaz (long-only).
 
 Dönem başı (E3c): bakiye = initial_balance, pozisyon ve bekleyen emir yok. Dönem
@@ -177,6 +179,7 @@ def run_portfolio(frames: dict, start_day: int, end_day: int,
         "gap_stops": 0, "stops": 0, "entry_day_stops": 0,
         "entries_cancelled_capacity": 0, "entries_cancelled_missing_bar": 0,
         "entries_skipped_invalid_atr": 0, "entries_blocked_no_capital": 0,
+        "days_no_capital_before_open": 0,
         "forced_closes": 0,
     })
     res.missing_day_valuations = {s: 0 for s in order}
@@ -202,6 +205,8 @@ def run_portfolio(frames: dict, start_day: int, end_day: int,
 
     for D in calendar:
         balance_before_open = balance
+        if not balance_before_open > 0:               # E16: açılış öncesi gerçekleşmiş bakiye
+            res.counters["days_no_capital_before_open"] += 1
         # sinyal günü D−1 olmayan bekleyen girişler: sembolün D'de barı yok → iptal (E5b)
         for s in list(pending_entries):
             sig_day, _ = pending_entries[s]

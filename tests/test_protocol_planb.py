@@ -158,10 +158,7 @@ def test_holdout_rejects_changed_config(tmp_path):
 
 
 def test_holdout_rejects_changed_code(tmp_path):
-    root = tmp_path / "root"
-    for rel in pb._FINGERPRINT_FILES:
-        (root / rel).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(pb.ROOT / rel, root / rel)
+    root = _copy_root(tmp_path)
     data, rep = _env(tmp_path)
     run("insample", data, rep, root=root)
     with open(root / "docs" / "SPEC_EKLERI.md", "a", encoding="utf-8") as f:
@@ -245,7 +242,7 @@ def test_lock_taken_before_run_and_survives_crash(tmp_path, monkeypatch):
 @pytest.mark.skipif(shutil.which("git") is None, reason="git yok")
 def test_git_state_recorded_before_lock_and_report(tmp_path):
     root = tmp_path / "repo"
-    for rel in pb._FINGERPRINT_FILES:
+    for rel in pb._FINGERPRINT_FILES + (pb.SPEC_SECTION_FILE,):
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(pb.ROOT / rel, root / rel)
     g = ["git", "-C", str(root)]
@@ -277,13 +274,66 @@ def _trade(pnl, day):
     return PBTrade("BTCUSDT", day, day, 100, 100, 90, 1, 50, 0, 0, 0, "stop", pnl)
 
 
-def test_capital_exhausted_detection():
-    r = PBResult(trades=[_trade(-6000, 1), _trade(-4000, 2), _trade(9000, 3)], counters={})
-    assert pb.capital_exhausted(r, 10_000) is True        # 2. günde bakiye 0
-    r = PBResult(trades=[_trade(-6000, 1), _trade(9000, 2), _trade(-4000, 3)], counters={})
-    assert pb.capital_exhausted(r, 10_000) is False
-    r = PBResult(trades=[], counters={"entries_blocked_no_capital": 1})
-    assert pb.capital_exhausted(r, 10_000) is True
+DAYS = list(range(100, 111))
+
+
+def frame(days, overrides=None, price=100.0):
+    overrides = overrides or {}
+    rows = []
+    for d in days:
+        r = dict(open=price, high=price + 1, low=price - 1, close=price,
+                 entry_signal=False, exit_signal=False, atr=5.0)
+        r.update(overrides.get(d, {}))
+        rows.append(r)
+    return pd.DataFrame(rows, index=pd.Index(days))
+
+
+def test_capital_exhausted_uses_pre_open_balance_only():
+    assert pb.capital_exhausted(PBResult(counters={"days_no_capital_before_open": 1})) is True
+    assert pb.capital_exhausted(PBResult(counters={"days_no_capital_before_open": 0})) is False
+
+
+def test_e16_same_open_order_does_not_trigger(tmp_path):
+    """ChatGPT PR #9: aynı açılışta BTC büyük zarar, ETH büyük kâr. Ara bakiye < 0 olsa da
+    açılış öncesi bakiyeler hep > 0 → E16 tetiklenmez."""
+    calm = {d: dict(low=100) for d in (101, 102, 103)}     # stop (99,96) tetiklenmesin
+    f = {"BTCUSDT": frame(DAYS, {**calm, 100: dict(entry_signal=True, atr=0.02),
+                                 104: dict(low=100, exit_signal=True),
+                                 105: dict(open=50, high=51, low=49, close=50)}),
+         "ETHUSDT": frame(DAYS, {**calm, 100: dict(entry_signal=True, atr=0.02),
+                                 104: dict(low=100, exit_signal=True),
+                                 105: dict(open=150, high=151, low=149, close=150)})}
+    nocost = PlanBParams(taker_fee=0.0, slippage_rate=0.0, funding_per_day=0.0)
+    r = run_portfolio(f, 100, 110, nocost)
+    btc, eth = r.trades
+    assert btc.pnl == pytest.approx(-50 * 1250) and eth.pnl == pytest.approx(50 * 1250)
+    assert 10_000 + btc.pnl < 0                        # BTC önce işlenince ara bakiye eksi
+    assert r.counters["days_no_capital_before_open"] == 0
+    assert pb.capital_exhausted(r) is False
+    m = pb.metrics(r, nocost, 110)
+    assert m["capital_exhausted"] is False
+
+
+def test_e16_triggers_when_pre_open_balance_nonpositive():
+    f = {"BTCUSDT": frame(DAYS, {100: dict(entry_signal=True, atr=0.02), 101: dict(low=100),
+                                 102: dict(open=80, high=81, low=79, close=80)})}
+    r = run_portfolio(f, 100, 110, PlanBParams(taker_fee=0.0, slippage_rate=0.0, funding_per_day=0.0))
+    assert r.trades[0].pnl == pytest.approx(-20 * 1250)
+    assert r.counters["days_no_capital_before_open"] == 8     # 103..110
+    assert pb.capital_exhausted(r) is True
+
+
+def test_e13_liquidations_listed_with_symbol_and_date():
+    sol_days = [d for d in DAYS if d != 110]                  # SOL bitiş günü (110) eksik
+    f = {"BTCUSDT": frame(DAYS, {100: dict(entry_signal=True)}),
+         "SOLUSDT": frame(sol_days, {100: dict(entry_signal=True), 109: dict(close=111)})}
+    p = PlanBParams(taker_fee=0.0, slippage_rate=0.0, funding_per_day=0.0)
+    r = run_portfolio(f, 100, 110, p)
+    liq = pb.metrics(r, p, 110)["period_end_liquidations"]
+    assert {x["symbol"] for x in liq["all"]} == {"BTCUSDT", "SOLUSDT"}
+    (early,) = liq["early_missing_end_bar"]
+    assert early["symbol"] == "SOLUSDT" and early["day"] == str(dd.day_date(109))
+    assert early["price"] == pytest.approx(111.0)
 
 
 def test_e16_fails_regardless_of_gates():
@@ -293,6 +343,42 @@ def test_e16_fails_regardless_of_gates():
     m["capital_exhausted"] = False
     assert pb.evaluate(m, "insample")["passed"] is True
     assert pb.evaluate(m, "holdout")["passed"] is True
+
+
+def test_report_lists_early_liquidations(tmp_path):
+    data, rep = _env(tmp_path)
+    r = run("insample", data, rep)
+    liq = r["metrics"]["period_end_liquidations"]
+    assert set(liq) == {"all", "early_missing_end_bar"}
+    assert all(x["day"] == "2024-12-31" for x in liq["all"])   # sentetik veride bitiş barı tam
+    assert liq["early_missing_end_bar"] == []
+    assert "Ortak bitişten ÖNCE tasfiye" in (rep / "PLANB_INSAMPLE.md").read_text(encoding="utf-8")
+
+
+def _copy_root(tmp_path):
+    root = tmp_path / "root"
+    for rel in pb._FINGERPRINT_FILES + (pb.SPEC_SECTION_FILE,):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(pb.ROOT / rel, root / rel)
+    return root
+
+
+def test_fingerprint_covers_devir_notu_section9_only(tmp_path):
+    root = _copy_root(tmp_path)
+    base = pb.code_fingerprint(root)
+    p = root / "DEVIR_NOTU.md"
+    text = p.read_text(encoding="utf-8")
+    assert "## 9." in text and "## 10." in text
+    p.write_text(text.replace("## 10.", "ilerleme notu eklendi\n\n## 10.", 1)
+                 .replace("\n", "\r\n"), encoding="utf-8")
+    # §9'un hemen sonuna (## 10'dan önce) eklenen satır §9'a dahildir → değişmeli
+    assert pb.code_fingerprint(root) != base
+    p.write_text(text + "\n## 99. yeni ilerleme notu\nx\n", encoding="utf-8")
+    assert pb.code_fingerprint(root) == base               # §9 dışı değişiklik
+    p.write_text(text.replace("\n", "\r\n"), encoding="utf-8")
+    assert pb.code_fingerprint(root) == base               # yalnız satır sonu farkı
+    p.write_text(text.replace("55", "50", 1), encoding="utf-8")
+    assert pb.code_fingerprint(root) != base               # §9 içeriği değişti
 
 
 def test_production_gates_are_e9():
