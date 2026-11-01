@@ -197,9 +197,12 @@ atışı = `DEVIR_NOTU.md` §9 + E3b, E3c, E5–E9 + E11–E14. Plan B sonucu g�
 sonra yapılacak her değişiklik = Plan B.1 + yeni tek atış.
 
 **E11 — Kanal çıkışı ile gap stop aynı açılışta [KARAR].**
-E6 ve E7b bu kesişimi tanımlamıyordu. **Karar:** önceki günün kapanışında kanal
-çıkışı verilmiş bir pozisyonda, ertesi günün açılışı stopun ötesinde (altında) olsa
-bile çıkış **kanal çıkışı** sayılır:
+E6 ve E7b bu kesişimi tanımlamıyordu. **Karar:** kanal çıkışı verilmiş bir
+pozisyonda, çıkışın **yürütüldüğü açılış** stopun ötesinde (altında) olsa bile çıkış
+**kanal çıkışı** sayılır. Bu hüküm iki durumu da kapsar: (a) çıkış ertesi günün
+açılışında yürütülüyorsa; (b) sembolün ertesi gün barı eksik olduğu için çıkış
+E5b'ye göre **ilk mevcut barın açılışına ertelenmişse**. (Ertelenme süresince barı
+olmayan günlerde gün içi stop tetiklenemez, çünkü o gün için fiyat yoktur.)
 - Çıkış fiyatı = açılış × (1 − slippage), taker ücret (gap stop ile aynı fiyat).
 - Kapanış sebebi `channel_exit`'tir; E7b'deki "kanal çıkışıyla boşalan kontenjan aynı
   açılışta kullanılabilir" kuralı uygulanır.
@@ -224,9 +227,12 @@ E4/E5b/E9 sembollerin son tam günleri farklıysa ortak bitişi tanımlamıyordu
   edilir; bu günden sonraki veri kullanılmaz.
 - **In-sample bitişi** sabittir: 2024-12-31 (dahil). Bu tarihe kadar verisi olmayan
   bir sembol varsa koşu engellenir (E14).
-- E5b'deki "sembolün kendi son mevcut barında tasfiye" hükmü yalnız dönemin
-  **içinde** verisi kesilen sembol için geçerlidir; ortak bitişten önce tüm
-  sembollerin son barı ortak bitiş gününe denk gelir.
+- Bir sembolün **ortak bitiş gününde barı yoksa** (o gün eksikse), o sembolün açık
+  pozisyonu E5b'ye göre **ortak bitişten önceki son mevcut barının kapanışında**
+  tasfiye edilir (aleyhe slippage + taker); funding o bara kadar (o bar dahil)
+  hesaplanır. Bu durum raporda sembol ve tarihle ayrıca belirtilir.
+- Aynı kural in-sample bitişi (2024-12-31) için de geçerlidir.
+- Ortak bitişten sonraki barlar hiçbir sembolde kullanılmaz (tasfiye fiyatı dahil).
 
 **E14 — Veri kaynağı ve veri engelleri [KARAR].**
 §9 "USDT perp, günlük bar" diyordu; kaynak ve eşikler tanımsızdı. **Karar:**
