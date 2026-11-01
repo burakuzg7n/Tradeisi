@@ -2,6 +2,38 @@
 
 Yazan: Claude (Fable 5) · 8 Temmuz 2026 · Kullanıcı: Burak
 
+## 0. GÜNCEL DURUM (1 Kasım 2026) — önce bunu oku
+
+**V1, V2 ve Plan B v1 REDDEDİLDİ.** Bu kararlar korunur; hiçbirinin hold-out'u koşulmaz,
+eşikleri ve parametreleri geriye dönük değiştirilmez. Burak'ın bir sonraki araştırma
+kararı verilene kadar yeni strateji, backtest, hold-out, paper veya testnet koşusu
+başlatılmaz. Seçenekler: `docs/SONRAKI_YON_KARAR_NOTU.md`.
+
+| Strateji | Sonuç (in-sample 2020–2024, tek atış) | Kayıt |
+|---|---|---|
+| V2 (§8 + SPEC_EKLERI E1–E10) | **KALDI** — PF 0,796 (> 1,3 ✗), işlem 490 (≥ 150 ✓), DD %22,37 (< %15 ✗). Koşu 2026-10-31 20:45 UTC, main @ `4e54362` | `reports/V2_INSAMPLE.json/.md/.lock`, commit `52239d7` |
+| Plan B v1 (§9 + SPEC_EKLERI E3b, E3c, E5–E9, E11–E17) | **KALDI** — PF 5,93 (> 1,3 ✓), işlem 37 (≥ 100 ✗), DD %20,36 (< %15 ✗), E16 ✓. Koşu 2026-11-01 19:57 UTC, main @ `d49785a`, kilit öncesi değişmiş dosya yok | `reports/PLANB_INSAMPLE.json/.md/.lock`, commit `6c5ed47`; veri: `reports/PLANB_VERI_SAGLIK.*` |
+
+**Sonuçları okurken:**
+- Plan B'nin yıllık tablosu işlemlerin **kapanış yılına** göredir; takvim yılı equity
+  getirisi değildir (işlemler yıl aşabilir). Kârın büyük kısmı 2021 ve 2024'te kapanan
+  az sayıda işlemden gelir; 37 işlem PF'ye güvenmek için azdır.
+- PF kapanmış işlemlerden, DD açık pozisyonları içeren günlük equity'den (E15) hesaplanır;
+  yüksek PF ile yüksek DD çelişmez.
+- Plan B raporundaki 122 "kontenjan iptali" bağımsız kaçırılmış fırsat sayısı **değildir**
+  (aynı sembolün ardışık günlerdeki sinyalleri tekrar sayılır) ve kontenjan artırmanın
+  sonucu iyileştireceğini göstermez.
+- Ders: Plan B'de 100 işlem eşiği, tasarımın üretebileceği işlem sayısı önceden
+  tahmin edilmeden konmuştu. Eşik geriye dönük değiştirilmez; gelecekteki araştırmalar
+  için planlama yöntemi karar notunun 3. bölümündedir.
+
+**Denetimin kapsamı ve sınırları:** kod ve testler PR #1–#9 boyunca ChatGPT tarafından
+bağımsız incelendi, bulunan hatalar düzeltildi ve testlerle kapatıldı; sonuç raporlarının
+mühürü, kapıları, parmak izi ve iç tutarlılığı doğrulandı. Bu **hatasızlık garantisi
+değildir**. Raporlar tam işlem listesini ve günlük equity serisini arşivlemediği ve CSV'ler
+depoda olmadığı için PF/DD'nin ham sonuçlardan bağımsız yeniden hesabı sınırlı kalmıştır.
+V2 verisi spot API kaynaklıdır (perp değil). Ayrıntı: karar notu §4.
+
 ## 1. Tek Paragraf Özet
 
 BTC/ETH için kural bazlı trade botu inşa edildi (SMC: HTF bias + liquidity
@@ -52,6 +84,8 @@ para yanmadan yakalandı. Sıradaki iş V2 stratejisi — altyapıya dokunma.
 | Session filtresi (killzone) | Kayıpları azaltıyor ama kâra çeviremiyor |
 | Volume filtresi (1.5×MA20) | 18 aylık BTC'de iyi görünüp uzun dönemde genellemedi — dönemsel şans |
 | Taker/taker ücret modeli dar stopla | 0.4R+/işlem maliyet — maker/taker ayrımı + min %0.2 stop şart |
+| V2 (sweep + CHoCH, 15M/4H) in-sample 2020–2024, tek atış | RED — PF 0.796, DD %22.37, 490 işlem (`reports/V2_INSAMPLE.md`) |
+| Plan B v1 (Donchian 55/20, günlük, BTC/ETH/SOL/BNB) in-sample 2020–2024, tek atış | RED — işlem 37 < 100, DD %20.36 > %15 (PF 5.93) (`reports/PLANB_INSAMPLE.md`) |
 
 Detaylar: reports/YILLIK_ANALIZ.md, reports/BACKTEST_RAPORU.md, PROGRESS.md.
 
@@ -140,8 +174,8 @@ kriterleri Burak'ın roadmap'inden gelir, kâr garantisi kimse veremez.
 
 ## 11. Sonraki Oturum İçin İlk Komutlar
 
-1. Bu dosyayı ve reports/YILLIK_ANALIZ.md'yi oku.
-2. §8'i implemente et (bash heredoc ile yaz — §3'teki OneDrive tuzağı!).
-3. Testler → Burak'a `2b_backtest_hizli.bat` benzeri tek tık ver
-   (veri data/'da hazır, 2020+ BTC+ETH indirilmiş durumda).
-4. Sonucu kapı kriterleriyle raporla — GEÇTİ ya da KALDI, süsleme yok.
+(1 Kasım 2026 itibarıyla; eski 8 Temmuz talimatı — §8'i implemente et — tamamlandı.)
+1. `AGENTS.md`, bu dosyanın §0'ı ve `docs/SONRAKI_YON_KARAR_NOTU.md`'yi oku.
+2. **Burak'ın yön kararını bekle.** Karar verilmeden yeni strateji, parametre
+   değişikliği, backtest, hold-out, paper veya testnet koşusu başlatma.
+3. `reports/` ve `*.lock` dosyalarına, §8/§9'a ve `docs/SPEC_EKLERI.md`'ye dokunma.

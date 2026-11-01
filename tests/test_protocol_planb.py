@@ -377,7 +377,8 @@ def test_fingerprint_covers_devir_notu_section9_only(tmp_path):
     assert pb.code_fingerprint(root) == base               # §9 dışı değişiklik
     p.write_text(text.replace("\n", "\r\n"), encoding="utf-8")
     assert pb.code_fingerprint(root) == base               # yalnız satır sonu farkı
-    p.write_text(text.replace("55", "50", 1), encoding="utf-8")
+    assert text.count("son 55") == 1                      # yalnız §9'daki giriş kanalı
+    p.write_text(text.replace("son 55", "son 50"), encoding="utf-8")
     assert pb.code_fingerprint(root) != base               # §9 içeriği değişti
 
 
