@@ -257,6 +257,24 @@ E4/E5b/E9 sembollerin son tam günleri farklıysa ortak bitişi tanımlamıyordu
   maddedir.
 *Gerekçe:* eşikler hiçbir Plan B verisi indirilmeden ve sonuç görülmeden sabitlenir.
 
+**E15 — Açık pozisyonun günlük equity değerlemesi [KARAR].**
+*Eklenme:* 1 Kasım 2026, PR #7 denetimi sonrası; V2 sonucundan sonra, hiçbir Plan B
+sonucu görülmeden. E3c/E7/E8/E12 açık pozisyonun DD hesabındaki maliyet tahakkukunu
+tanımlamıyordu. **Karar:** ortak hesabın günlük kapanış equity'si =
+gerçekleşmiş bakiye + her açık pozisyon için [(son mevcut kapanış − dolum fiyatı) ×
+miktar − ödenmiş giriş ücreti − giriş gününden o güne kadar (iki gün dahil) biriken
+funding]. **Çıkış ücreti ve çıkış slippage'ı dahil edilmez.** Pozisyon kapandığında bu
+kalemler E7/E8'e göre gerçekleşmiş PnL'ye bir kez yazılır (çift kesinti yok).
+*Not:* V2 motorunun MTM'sinde ücret yoktu; bu kural yalnız Plan B içindir.
+
+**E16 — Sermaye tükenmesi [KARAR].**
+*Eklenme:* E15 ile aynı. **Karar:** bir açılış öncesi gerçekleşmiş bakiye **≤ 0** ise o
+açılışta yeni giriş yapılmaz (sayılır ve raporlanır); açık pozisyonlar kurallarına göre
+kapanır; koşu dönem sonuna kadar devam eder ve DD %100'ü aşabilir. Böyle bir koşu,
+kapılardan bağımsız olarak **KALDI** sayılır. Hesaplanan miktar pozitif ve sonlu değilse
+giriş yapılmaz (long-only motor negatif miktar açamaz). Bu kural bir ATR eşiği
+getirmez; strateji parametresi değildir.
+
 ### Plan B uygulama kontrolleri (kural değil, iş listesi)
 - Veri PR'ı: indirme betiği + veri sağlık raporu (listeleme günü, boşluklar, bozuk bar
   kontrolü). Geliştirme sırasında gerçek veride **performans koşusu yapılmaz**.

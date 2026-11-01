@@ -346,3 +346,60 @@ def test_pending_entry_cancelled_when_no_symbol_trades_next_day():
     r = run_portfolio(f, 100, 110, NOCOST)
     assert r.trades == []
     assert r.counters["entries_cancelled_missing_bar"] == 1
+
+
+# ------------------------------------------------------------------ PR #7 denetimi
+def test_e13_liquidation_happens_on_last_bar_and_frees_slot():
+    """BTC son barı 107, ortak bitiş 110. BTC 107 kapanışında kapanmalı; SOL'un 108
+    sinyali 109'da boş kontenjana girebilmeli; 108'den sonra equity BTC'yi içermemeli."""
+    btc_days = [d for d in DAYS if d <= 107]
+    f = {
+        "BTCUSDT": frame(btc_days, {100: dict(entry_signal=True), 107: dict(close=120)}),
+        "ETHUSDT": frame(DAYS, {100: dict(entry_signal=True)}),
+        "SOLUSDT": frame(DAYS, {108: dict(entry_signal=True)}),
+    }
+    r = run_portfolio(f, 100, 110, NOCOST)
+    btc = only(r.trades, "BTCUSDT")[0]
+    assert (btc.exit_day, btc.exit, btc.reason) == (107, 120.0, "period_end")
+    (sol,) = only(r.trades, "SOLUSDT")
+    assert sol.entry_day == 109
+    assert r.counters["entries_cancelled_capacity"] == 0
+    # 108: gerçekleşmiş bakiye 10.100 + ETH (düz) → 10.100
+    assert r.equity.loc[107] == pytest.approx(10_100.0)
+    assert r.equity.loc[108] == pytest.approx(10_100.0)
+    assert r.missing_day_valuations["BTCUSDT"] == 0
+
+
+def test_last_bar_emits_no_new_orders():
+    btc_days = [d for d in DAYS if d <= 107]
+    f = {"BTCUSDT": frame(btc_days, {107: dict(entry_signal=True)}), "ETHUSDT": frame(DAYS)}
+    r = run_portfolio(f, 100, 110, NOCOST)
+    assert r.trades == [] and r.counters["entries_cancelled_missing_bar"] == 0
+
+
+def test_e16_no_entries_after_capital_exhausted_and_never_negative_qty():
+    # ATR çok küçük → dev miktar; 102'de gap −%40 → bakiye eksiye düşer
+    f = {"BTCUSDT": frame(DAYS, {100: dict(entry_signal=True, atr=0.0001),
+                                 101: dict(low=100),          # giriş günü stopa değmez
+                                 102: dict(open=60, high=61, low=59, close=60),
+                                 103: dict(entry_signal=True, atr=5.0)}),
+         "ETHUSDT": frame(DAYS, {104: dict(entry_signal=True, atr=5.0)})}
+    r = run_portfolio(f, 100, 110, NOCOST)
+    (t,) = r.trades
+    assert t.pnl == pytest.approx((60 - 100) * 50 / 0.0002)
+    assert r.final_balance < 0
+    assert r.counters["entries_blocked_no_capital"] == 2
+    assert all(x.qty > 0 for x in r.trades)
+
+
+def test_e16_zero_balance_blocks():
+    # tam olarak 0'a düşüren kayıp: risk 50, miktar 50/(2·atr); gap ile kayıp = 10.000
+    atr = 0.025                                   # miktar = 50 / 0,05 = 1.000
+    f = {"BTCUSDT": frame(DAYS, {100: dict(entry_signal=True, atr=atr),
+                                 101: dict(low=100),
+                                 102: dict(open=90, high=91, low=89, close=90),
+                                 103: dict(entry_signal=True, atr=5.0)})}
+    r = run_portfolio(f, 100, 110, NOCOST)
+    assert r.trades[0].pnl == pytest.approx(-10_000.0)
+    assert r.counters["entries_blocked_no_capital"] == 1
+    assert len(r.trades) == 1

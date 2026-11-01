@@ -34,16 +34,22 @@ Kapanış:
   5. Açık pozisyonda exit_signal → bekleyen kanal çıkışı (sembolün sonraki mevcut
      barının açılışında yürütülür; E5b).
   6. Pozisyonsuz sembolde entry_signal → yalnız ertesi takvim günü için bekleyen giriş.
-  7. Günlük equity = bakiye + açık pozisyonların (son mevcut kapanış − giriş) × miktar
-     − giriş ücreti − o güne kadar biriken funding (E12; muhafazakâr: tahakkuk etmiş
-     maliyetler MTM'ye dahil, çıkış ücreti dahil değil).
+  7. Günlük equity (E12/E15) = gerçekleşmiş bakiye + açık pozisyonların (son mevcut
+     kapanış − giriş) × miktar − giriş ücreti − o güne kadar (o gün dahil) biriken
+     funding. Çıkış ücreti dahil değildir.
 
 Funding (E8): nominal = dolum × miktar; açık kalınan her UTC takvim günü (giriş ve
 çıkış günü dahil) × %0,03; kapanışta PnL'den düşülür.
 
-Dönem sonu (E3b/E13): bitiş gününün kapanışında açık her pozisyon, sembolün bitiş
-gününe kadarki son mevcut barının kapanışında × (1 − slip), taker, sebep 'period_end'
-ile tasfiye edilir; funding o barın gününe kadar sayılır. Bekleyen emirler iptal.
+Dönem sonu (E3b/E5b/E13): her sembolün dönem içindeki SON mevcut barının kapanışında
+(adım 5'te, o günün akışı içinde) açık pozisyonu × (1 − slip), taker, sebep 'period_end'
+ile tasfiye edilir; funding o güne kadar sayılır. Kontenjan ve bakiye sonraki günlerde
+bunu görür. Son barda yeni çıkış/giriş emri üretilmez; bekleyen emirler kendiliğinden
+iptal olur. Not: "son mevcut bar" dönem sonu verisiyle belirlenir (E13 tanımı).
+
+Sermaye tükenmesi (E16): açılış öncesi gerçekleşmiş bakiye <= 0 ise yeni giriş yapılmaz
+(entries_blocked_no_capital); açık pozisyonlar kurallarına göre kapanır. Hesaplanan
+miktar pozitif ve sonlu değilse giriş yapılmaz (long-only).
 
 Dönem başı (E3c): bakiye = initial_balance, pozisyon ve bekleyen emir yok. Dönem
 başından önceki sinyaller hiçbir emir üretmez (yalnız gösterge ısınması içindir).
@@ -162,12 +168,16 @@ def run_portfolio(frames: dict, start_day: int, end_day: int,
     bars = {s: {int(d): row for d, row in zip(frames[s].index, frames[s].itertuples(index=False))}
             for s in order}
     calendar = sorted({d for s in order for d in bars[s] if start_day <= d <= end_day})
+    # E5b/E13: her sembolün dönem içindeki son mevcut barı (tasfiye o barın kapanışında)
+    last_in_period = {s: max((d for d in bars[s] if start_day <= d <= end_day), default=None)
+                      for s in order}
 
     res = PBResult(counters={
         "channel_exits": 0, "channel_exit_through_stop": 0, "deferred_channel_exits": 0,
         "gap_stops": 0, "stops": 0, "entry_day_stops": 0,
         "entries_cancelled_capacity": 0, "entries_cancelled_missing_bar": 0,
-        "entries_skipped_invalid_atr": 0, "forced_closes": 0,
+        "entries_skipped_invalid_atr": 0, "entries_blocked_no_capital": 0,
+        "forced_closes": 0,
     })
     res.missing_day_valuations = {s: 0 for s in order}
     slip, fee, fund = p.slippage_rate, p.taker_fee, p.funding_per_day
@@ -230,11 +240,17 @@ def run_portfolio(frames: dict, start_day: int, end_day: int,
             if not (atr > 0 and math.isfinite(atr)):
                 res.counters["entries_skipped_invalid_atr"] += 1
                 continue
+            if not balance_before_open > 0:           # E16: sermaye tükendi
+                res.counters["entries_blocked_no_capital"] += 1
+                continue
             bar = bars[s][D]
             fill = bar.open * (1 + slip)
             dist = p.atr_mult * atr
             risk_amount = balance_before_open * p.risk_per_trade
             qty = risk_amount / dist
+            if not (qty > 0 and math.isfinite(qty)):  # long-only: miktar daima pozitif
+                res.counters["entries_skipped_invalid_atr"] += 1
+                continue
             positions[s] = _Pos(s, D, fill, fill - dist, qty, risk_amount,
                                 fill * qty * fee, bar.close)
 
@@ -252,19 +268,25 @@ def run_portfolio(frames: dict, start_day: int, end_day: int,
                 close_pos(pos, px * (1 - slip), D, "stop")
                 locked_until[s] = D + 1
 
-        # 5-6. kapanış sinyalleri (son gün hariç: dönem sonu tasfiyesi)
+        # 5-6. kapanış: dönem içindeki son barında tasfiye (E3b/E5b/E13), aksi halde sinyaller
         for s in order:
             if D not in bars[s]:
                 continue
             bar = bars[s][D]
             pos = positions.get(s)
+            last_bar_day[s] = D
+            if D == last_in_period[s]:
+                if pos is not None:
+                    pos.last_close = bar.close
+                    res.counters["forced_closes"] += 1
+                    close_pos(pos, bar.close * (1 - slip), D, "period_end")
+                continue                      # son barda yeni emir üretilmez
             if pos is not None:
                 pos.last_close = bar.close
-                if D < end_day and bool(bar.exit_signal):
+                if bool(bar.exit_signal):
                     pos.exit_pending = True
-            elif D < end_day and bool(bar.entry_signal):
+            elif bool(bar.entry_signal):
                 pending_entries[s] = (D, float(bar.atr))
-            last_bar_day[s] = D
 
         # 7. equity (E12: barı olmayan sembol son kapanışla)
         eq = balance
@@ -276,15 +298,7 @@ def run_portfolio(frames: dict, start_day: int, end_day: int,
         equity_days.append(D)
         equity_vals.append(eq)
 
-    # dönem sonu tasfiyesi (E3b/E13)
-    for s in order:
-        pos = positions.get(s)
-        if pos is None:
-            continue
-        day = last_bar_day[s]
-        res.counters["forced_closes"] += 1
-        close_pos(pos, pos.last_close * (1 - slip), day, "period_end")
-    if equity_vals:
-        equity_vals[-1] = balance
+    if positions:  # her açık pozisyonun sembolü dönem içinde son barına ulaşmış olmalı
+        raise PortfolioError(f"dönem sonunda kapanmamış pozisyon: {sorted(positions)}")
     res.equity = pd.Series(equity_vals, index=pd.Index(equity_days, name="day"), dtype=float)
     return res
