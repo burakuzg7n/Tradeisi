@@ -275,6 +275,23 @@ kapılardan bağımsız olarak **KALDI** sayılır. Hesaplanan miktar pozitif ve
 giriş yapılmaz (long-only motor negatif miktar açamaz). Bu kural bir ATR eşiği
 getirmez; strateji parametresi değildir.
 
+**E17 — ATR başlangıcı ve önceki kapanış [KARAR].**
+*Eklenme:* 1 Kasım 2026, PR #8 denetimi sonrası; V2 sonucundan sonra, hiçbir Plan B
+sonucu görülmeden. E6 "ilk 20 true range'in ortalaması" diyordu; önceki kapanışı
+olmayan ilk barı tanımlamıyordu. **Karar:**
+- True range'deki "önceki kapanış" = bir önceki **mevcut** günlük barın kapanışı
+  (eksik gün doldurulmaz; E5/E5b ile tutarlı).
+- Veri dosyasının **ilk barının TR'si yoktur** (önceki kapanış yok); bu bar için
+  high−low kullanılmaz.
+- İlk ATR = **2.–21. barların** TR'lerinin basit ortalaması, 21. barın kapanışında hazır;
+  sonrası Wilder: ATR(t) = (ATR(t−1)·19 + TR(t)) / 20.
+*Gerekçe:* TR tanımı önceki kapanışı gerektirir (Wilder'in tanımı da ikinci günden
+başlar). Ayrıca veri dosyalarının ilk barı sözleşmenin **listeleme günüdür**; açılış
+günü mumları olağandışı geniş olabilir ve ATR başlangıcını şişirebilir. Wilder
+düzgünleştirmesi başlangıç değerini sonraki barlara taşıdığı için bu seçim, özellikle
+geç listelenen sembollerde (SOL), ilk işlemlerin stop ve boyutunu etkileyebilir;
+bu etki kabul edilmiş ve sonuç görülmeden sabitlenmiştir.
+
 ### Plan B uygulama kontrolleri (kural değil, iş listesi)
 - Veri PR'ı: indirme betiği + veri sağlık raporu (listeleme günü, boşluklar, bozuk bar
   kontrolü). Geliştirme sırasında gerçek veride **performans koşusu yapılmaz**.
