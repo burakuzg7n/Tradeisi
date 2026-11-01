@@ -1,0 +1,223 @@
+{
+  "version": "PLANB_V1",
+  "phase": "insample",
+  "run_utc": "2026-11-01T19:57:52+00:00",
+  "period": {
+    "start": "2020-01-01",
+    "end_inclusive": "2024-12-31"
+  },
+  "gate_thresholds": {
+    "min_pf": 1.3,
+    "min_trades": 100,
+    "max_dd": 0.15
+  },
+  "gates": {
+    "PF > 1.3": true,
+    "işlem >= 100": false,
+    "DD < %15": false,
+    "sermaye tükenmedi (E16)": true
+  },
+  "gates_passed": false,
+  "verdict": "KALDI",
+  "metrics": {
+    "total_trades": 37,
+    "profit_factor": 5.934533994740182,
+    "max_drawdown": 0.2036092236464402,
+    "initial_balance": 10000.0,
+    "final_equity": 17140.445835998948,
+    "net_pnl": 7140.44583599895,
+    "expectancy_r": 3.4342236393445416,
+    "win_rate": 0.35135135135135137,
+    "total_fees": 34.6577662077967,
+    "total_funding": 380.0181359086167,
+    "exit_reasons": {
+      "channel_exit": 18,
+      "stop": 18,
+      "period_end": 1
+    },
+    "capital_exhausted": false,
+    "period_end_liquidations": {
+      "all": [
+        {
+          "symbol": "BTCUSDT",
+          "day": "2024-12-31",
+          "price": 93539.54510999999,
+          "pnl": 463.4572855170825
+        }
+      ],
+      "early_missing_end_bar": []
+    },
+    "counters": {
+      "channel_exits": 18,
+      "channel_exit_through_stop": 0,
+      "deferred_channel_exits": 0,
+      "gap_stops": 0,
+      "stops": 18,
+      "entry_day_stops": 1,
+      "entries_cancelled_capacity": 122,
+      "entries_cancelled_missing_bar": 0,
+      "entries_skipped_invalid_atr": 0,
+      "entries_blocked_no_capital": 0,
+      "days_no_capital_before_open": 0,
+      "forced_closes": 1
+    },
+    "missing_day_valuations": {
+      "BTCUSDT": 0,
+      "ETHUSDT": 0,
+      "SOLUSDT": 0,
+      "BNBUSDT": 0
+    },
+    "by_year": {
+      "2020": {
+        "trades": 9,
+        "net": -39.59,
+        "pf": 0.8539964337292041
+      },
+      "2021": {
+        "trades": 7,
+        "net": 3991.54,
+        "pf": 24.2630456262532
+      },
+      "2022": {
+        "trades": 5,
+        "net": -363.79,
+        "pf": 0.0
+      },
+      "2023": {
+        "trades": 7,
+        "net": -104.13,
+        "pf": 0.6369592952459702
+      },
+      "2024": {
+        "trades": 9,
+        "net": 3656.42,
+        "pf": 11.338620750837052
+      }
+    },
+    "by_symbol": {
+      "BTCUSDT": {
+        "trades": 12,
+        "net": 2361.1,
+        "pf": 7.408561771961033
+      },
+      "ETHUSDT": {
+        "trades": 12,
+        "net": 2075.7,
+        "pf": 5.836562060477028
+      },
+      "BNBUSDT": {
+        "trades": 8,
+        "net": -474.41,
+        "pf": 0.056022610435240906
+      },
+      "SOLUSDT": {
+        "trades": 5,
+        "net": 3178.05,
+        "pf": 22.638016132844687
+      }
+    }
+  },
+  "data": {
+    "health_report_sha256": "36cc29471d68693dd1c68760d5e9f49bc5eabddada701c074e0b03a4a2f889d9",
+    "file_sha256": {
+      "BTCUSDT": "d0d7c252e73ac294468137c7e904aa18b2b3c6ec383e846c054fd5a87ce98e7d",
+      "ETHUSDT": "81378f3a73504c8bade39b925aa1248a3146b131b5d8224454d9e97a6a8e132e",
+      "SOLUSDT": "3c03e9e9ca82a9aa677874a0286209376162ad3dc8d713e29cf62623370154bd",
+      "BNBUSDT": "f57ff7b14021bcdc2265443a6e7e3326e7ed300354a1c9b55e3263adf4c1871b"
+    },
+    "common_holdout_end": "2026-10-31",
+    "symbols": {
+      "BTCUSDT": {
+        "listing_day": "2019-09-08",
+        "first_day": "2019-09-08",
+        "last_day": "2026-10-31",
+        "missing_after_listing": 0,
+        "warmup_55_bar_done": "2019-11-01"
+      },
+      "ETHUSDT": {
+        "listing_day": "2019-11-27",
+        "first_day": "2019-11-27",
+        "last_day": "2026-10-31",
+        "missing_after_listing": 0,
+        "warmup_55_bar_done": "2020-01-20"
+      },
+      "SOLUSDT": {
+        "listing_day": "2020-09-14",
+        "first_day": "2020-09-14",
+        "last_day": "2026-10-31",
+        "missing_after_listing": 0,
+        "warmup_55_bar_done": "2020-11-07"
+      },
+      "BNBUSDT": {
+        "listing_day": "2020-02-10",
+        "first_day": "2020-02-10",
+        "last_day": "2026-10-31",
+        "missing_after_listing": 0,
+        "warmup_55_bar_done": "2020-04-04"
+      }
+    }
+  },
+  "slice_hashes": {
+    "BTCUSDT": "95e138d191c0864afc04b9b004dfc6d3d4cc2ae8e4edae0f8a072a0f0815746a",
+    "ETHUSDT": "10f06017ba720e5298f2c5efbbd9e94dddf74341aa491ef39819f4ad2256b94c",
+    "SOLUSDT": "952abea652f841c951fa18fab1f617bedfbf43677a342222caebd60de5437405",
+    "BNBUSDT": "a93b933cc32cfe73ce722da9d786f3ab01f469ae420d4e6319659abc47f3957c"
+  },
+  "code_fingerprint": "8821c9c764cf3612b886abf04409f5eb3faa610ad71f40aa87c17e9879f2c2d9",
+  "protocol_config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "BNBUSDT"
+    ],
+    "periods": {
+      "insample_start": "2020-01-01",
+      "insample_end": "2024-12-31",
+      "holdout_start": "2025-01-01"
+    },
+    "engine": {
+      "initial_balance": 10000.0,
+      "risk_per_trade": 0.005,
+      "max_positions": 2,
+      "atr_mult": 2.0,
+      "funding_per_day": 0.0003,
+      "taker_fee": 0.00055,
+      "slippage_rate": 0.0001
+    },
+    "strategy": {
+      "entry_lookback": 55,
+      "exit_lookback": 20,
+      "atr_period": 20
+    },
+    "data": {
+      "max_missing_ratio": 0.01
+    },
+    "gates": {
+      "insample": {
+        "min_pf": 1.3,
+        "min_trades": 100,
+        "max_dd": 0.15
+      },
+      "holdout": {
+        "min_pf": 1.15,
+        "max_dd": 0.15
+      }
+    }
+  },
+  "git": {
+    "commit": "d49785a35622816d612707382f9416c8612cbd9a",
+    "changed_files_before_lock": [],
+    "dirty": false
+  },
+  "env": {
+    "python": "3.13.14",
+    "pandas": "3.0.3",
+    "numpy": "2.4.3"
+  },
+  "notes": [
+    "E13: dönem sonu tasfiyesi sembolün dönem içindeki son mevcut barını dönem sonu verisine bakarak belirler (onaylanmış dönem sonu varsayımı). Bu rapor genel bir 'lookahead yok' iddiası taşımaz; sinyal hesabı lookahead içermez."
+  ],
+  "insample_reference": null,
+  "integrity": "20ab824cb2b83b123d17e37da29372faa7f57afe2e28e1345025c1279341159a"
+}
