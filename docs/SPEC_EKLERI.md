@@ -225,13 +225,15 @@ E4/E5b/E9 sembollerin son tam günleri farklıysa ortak bitişi tanımlamıyordu
 - **Hold-out bitişi** = sembollerin her birinin **son tam UTC gününün en erkeni**
   (ortak bitiş). O günün kapanışında **tüm** açık pozisyonlar E3b'ye göre tasfiye
   edilir; bu günden sonraki veri kullanılmaz.
-- **In-sample bitişi** sabittir: 2024-12-31 (dahil). Bu tarihe kadar verisi olmayan
-  bir sembol varsa koşu engellenir (E14).
+- **In-sample bitişi** sabittir: 2024-12-31 (dahil). Bu tarihten önce listelenmiş
+  bir sembolün 2024-12-31 barı yoksa koşu engellenir (E14/3).
 - Bir sembolün **ortak bitiş gününde barı yoksa** (o gün eksikse), o sembolün açık
   pozisyonu E5b'ye göre **ortak bitişten önceki son mevcut barının kapanışında**
   tasfiye edilir (aleyhe slippage + taker); funding o bara kadar (o bar dahil)
   hesaplanır. Bu durum raporda sembol ve tarihle ayrıca belirtilir.
-- Aynı kural in-sample bitişi (2024-12-31) için de geçerlidir.
+- Bu tasfiye kuralı **yalnız hold-out** içindir. In-sample'da bu durum oluşamaz:
+  E14/3 gereği her sembolün **2024-12-31 barı mevcut olmalıdır**; yoksa koşu
+  engellenir. Bu kural E14/3 engelini kaldırmaz.
 - Ortak bitişten sonraki barlar hiçbir sembolde kullanılmaz (tasfiye fiyatı dahil).
 
 **E14 — Veri kaynağı ve veri engelleri [KARAR].**
@@ -249,8 +251,8 @@ E4/E5b/E9 sembollerin son tam günleri farklıysa ortak bitişi tanımlamıyordu
      eksik.
   2. Bozuk bar: aynı zaman damgası iki kez, sıfır/negatif fiyat, high < low,
      open veya close'un [low, high] dışında olması.
-  3. In-sample'da bir sembolün verisi 2024-12-31'e ulaşmıyor (o sembol bu tarihten
-     önce listelenmişse).
+  3. In-sample'da, 2024-12-31'den önce listelenmiş bir sembolün **2024-12-31 günlük
+     barı yok** (veri bu tarihe ulaşmıyor veya tam bu gün eksik).
 - V2'nin %99 kapsam eşiği Plan B'ye **aktarılmaz**; Plan B eşikleri yalnız bu
   maddedir.
 *Gerekçe:* eşikler hiçbir Plan B verisi indirilmeden ve sonuç görülmeden sabitlenir.
