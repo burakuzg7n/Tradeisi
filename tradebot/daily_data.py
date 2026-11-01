@@ -6,7 +6,10 @@ yapmaz (SPEC_EKLERI: "geliştirme sırasında gerçek veride performans koşusu 
 Kurallar: docs/SPEC_EKLERI.md E5b, E13, E14.
 - Kaynak: fapi.binance.com, contractType=PERPETUAL, son işlem fiyatı OHLC, interval=1d.
 - Yalnız KAPANMIŞ günlük mumlar kaydedilir (açılış + 1 gün <= şimdi).
-- Listeleme öncesi günler eksik sayılmaz; "listeleme" = verideki ilk mum.
+- Listeleme öncesi günler eksik sayılmaz. "Listeleme günü" denetlenen dosyadan
+  BAĞIMSIZ belirlenir: min(exchangeInfo onboardDate günü, dosyadaki ilk mum günü).
+  Dosya listeleme gününden sonra başlıyorsa aradaki günler EKSİK sayılır (başı
+  kesik indirme listeleme öncesi gibi görünemez). Listeleme bilgisi yoksa engel.
 - Koşu engelleri (E14): dönem içi eksik gün > %1, bozuk bar, in-sample'da 2024-12-31
   barı yok (sembol bu tarihten önce listelenmişse).
 """
@@ -17,6 +20,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 FAPI_BASE = "https://fapi.binance.com"
@@ -31,6 +35,7 @@ SYMBOLS = ("BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT")
 INSAMPLE_START = date(2020, 1, 1)
 INSAMPLE_END = date(2024, 12, 31)  # dahil
 HOLDOUT_START = date(2025, 1, 1)
+DOWNLOAD_FROM = date(2019, 1, 1)  # tüm sözleşmelerin listelemesinden önce; API ilk mumdan döner
 MAX_MISSING_RATIO = 0.01  # E14/1: %1'den FAZLASI engel
 WARMUP_BARS = 55  # E5: yalnız bilgi amaçlı raporlanır
 
@@ -161,13 +166,14 @@ def bad_bars(df: pd.DataFrame) -> list:
     for t in dups:
         out.append(f"tekrarlanan zaman damgası: {_iso(t)}")
     p = df[PRICE_COLS]
-    nan = p.isna().any(axis=1)
+    nan = ~np.isfinite(p.to_numpy(dtype=float)).all(axis=1)
+    nan = pd.Series(nan, index=df.index)
     nonpos = (p <= 0).any(axis=1)
     hl = df["high"] < df["low"]
     o_out = (df["open"] < df["low"]) | (df["open"] > df["high"])
     c_out = (df["close"] < df["low"]) | (df["close"] > df["high"])
     checks = [
-        (nan, "sayısal olmayan/eksik fiyat"),
+        (nan, "sonlu olmayan fiyat (NaN/inf)"),
         (nonpos, "sıfır/negatif fiyat"),
         (hl, "high < low"),
         (o_out, "open [low, high] dışında"),
@@ -195,7 +201,14 @@ def _period_stats(day_set: set, first: int, start: date, end: date) -> dict:
     }
 
 
-def symbol_health(df: pd.DataFrame) -> dict:
+def listing_day(onboard_ms, first_bar_day: int) -> int | None:
+    """Listeleme günü = min(onboardDate günü, ilk mum günü). onboardDate yoksa None."""
+    if onboard_ms is None:
+        return None
+    return min(int(onboard_ms) // DAY_MS, first_bar_day)
+
+
+def symbol_health(df: pd.DataFrame, onboard_ms=None) -> dict:
     """Tek sembolün dönemden bağımsız sağlık bilgisi."""
     if len(df) == 0:
         raise DataError("boş veri")
@@ -208,14 +221,19 @@ def symbol_health(df: pd.DataFrame) -> dict:
         warnings.append(f"00:00 UTC'ye hizalı olmayan mum: {_iso(t)}")
     days = sorted(set((ts // DAY_MS).tolist()))
     day_set = set(days)
-    first, last = days[0], days[-1]
+    first_bar, last = days[0], days[-1]
+    listed = listing_day(onboard_ms, first_bar)
+    first = listed if listed is not None else first_bar
     missing_all = [d for d in range(first, last + 1) if d not in day_set]
     warmup_done = str(day_date(days[WARMUP_BARS - 1])) if len(days) >= WARMUP_BARS else None
     return {
         "rows": int(len(df)),
-        "first_day": str(day_date(first)),
+        "listing_day": str(day_date(listed)) if listed is not None else None,
+        "onboard_day": str(day_date(int(onboard_ms) // DAY_MS)) if onboard_ms is not None else None,
+        "first_day": str(day_date(first_bar)),
+        "missing_before_first_bar": first_bar - first,
         "last_day": str(day_date(last)),
-        "_first": first, "_last": last, "_days": day_set,
+        "_first": first, "_last": last, "_days": day_set, "_listed": listed,
         "missing_after_listing": len(missing_all),
         "gaps_after_listing": _ranges(missing_all),
         "bad_bars": bad_bars(df),
@@ -224,12 +242,13 @@ def symbol_health(df: pd.DataFrame) -> dict:
     }
 
 
-def build_report(frames: dict, contracts: dict | None = None,
+def build_report(frames: dict, contracts: dict,
                  file_hashes: dict | None = None) -> dict:
-    """E13/E14 veri sağlık raporu. frames: {sembol: ham DataFrame}."""
-    contracts = contracts or {}
+    """E13/E14 veri sağlık raporu. frames: {sembol: ham DataFrame};
+    contracts: {sembol: {"onboardDate": ms, ...}} (fetch_contracts çıktısı)."""
     file_hashes = file_hashes or {}
-    per = {sym: symbol_health(df) for sym, df in frames.items()}
+    per = {sym: symbol_health(df, (contracts.get(sym) or {}).get("onboardDate"))
+           for sym, df in frames.items()}
     common_end = day_date(min(h["_last"] for h in per.values()))
     blockers = []
     symbols = {}
@@ -238,6 +257,8 @@ def build_report(frames: dict, contracts: dict | None = None,
         hold = _period_stats(h["_days"], h["_first"], HOLDOUT_START, common_end)
         listed_before_end = h["_first"] <= day_index(INSAMPLE_END)
         has_end_bar = day_index(INSAMPLE_END) in h["_days"]
+        if h["_listed"] is None:
+            blockers.append(f"{sym}: listeleme bilgisi (onboardDate) yok, kapsam doğrulanamaz (E14)")
         if h["bad_bars"]:
             blockers.append(f"{sym}: {len(h['bad_bars'])} bozuk bar (E14/2)")
         if ins["missing_ratio"] > MAX_MISSING_RATIO:
@@ -279,12 +300,12 @@ def render_markdown(rep: dict) -> str:
     L += ["## Engeller", ""]
     L += [f"- {b}" for b in rep["blockers"]] or ["- Yok"]
     L += ["", "## Semboller", "",
-          "| Sembol | İlk gün | Son gün | 55. bar | Eksik (listeleme sonrası) | In-sample eksik | 2024-12-31 | Hold-out eksik | Bozuk bar |",
-          "|---|---|---|---|---|---|---|---|---|"]
+          "| Sembol | Listeleme | İlk mum | Son gün | 55. bar | Eksik (listeleme sonrası) | In-sample eksik | 2024-12-31 | Hold-out eksik | Bozuk bar |",
+          "|---|---|---|---|---|---|---|---|---|---|"]
     for sym, s in rep["symbols"].items():
         ins, hold = s["insample"], s["holdout"]
         L.append(
-            f"| {sym} | {s['first_day']} | {s['last_day']} | {s['warmup_55_bar_done']} | "
+            f"| {sym} | {s['listing_day']} | {s['first_day']} | {s['last_day']} | {s['warmup_55_bar_done']} | "
             f"{s['missing_after_listing']} | {ins['missing_days']}/{ins['expected_days']} "
             f"(%{ins['missing_ratio']*100:.2f}) | {'var' if s['insample_end_bar_present'] else 'YOK'} | "
             f"{hold['missing_days']}/{hold['expected_days']} (%{hold['missing_ratio']*100:.2f}) | "

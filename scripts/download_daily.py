@@ -30,8 +30,10 @@ def main() -> int:
     contracts = dd.fetch_contracts(session)
     frames, hashes = {}, {}
     for sym in dd.SYMBOLS:
-        onboard = contracts[sym].get("onboardDate") or 0
-        start_ms = (int(onboard) // dd.DAY_MS) * dd.DAY_MS
+        onboard = contracts[sym].get("onboardDate")
+        start_ms = dd.day_index(dd.DOWNLOAD_FROM) * dd.DAY_MS
+        if onboard is not None:  # listelemeden önce başla: ilk mum kaçmasın
+            start_ms = min(start_ms, (int(onboard) // dd.DAY_MS) * dd.DAY_MS)
         print(f"İndiriliyor: {sym} 1d (PERPETUAL)")
         rows = dd.download_daily_rows(sym, session, now_ms, start_ms=start_ms)
         path = data_dir / f"{sym}_1d.csv"

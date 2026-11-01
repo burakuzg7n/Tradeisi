@@ -31,8 +31,18 @@ def clean_frames():
     return {s: frame(FULL_START, FULL_END) for s in dd.SYMBOLS}
 
 
+def contracts(**onboard):
+    """Varsayılan onboardDate = FULL_START; onboard=dict(SOLUSDT=date) ile değiştirilir."""
+    return {s: {"symbol": s, "contractType": "PERPETUAL", "status": "TRADING",
+                "onboardDate": ms(onboard.get(s, FULL_START))} for s in dd.SYMBOLS}
+
+
+def report(frames, **onboard):
+    return dd.build_report(frames, contracts(**onboard))
+
+
 def test_clean_data_has_no_blockers():
-    rep = dd.build_report(clean_frames())
+    rep = report(clean_frames())
     assert rep["verdict"] == "VERİ UYGUN"
     assert rep["blockers"] == []
     s = rep["symbols"]["BTCUSDT"]
@@ -48,13 +58,13 @@ def test_insample_missing_threshold_is_strictly_more_than_one_percent():
     gap19 = {date(2021, 3, 1) + timedelta(days=i) for i in range(19)}
     f = clean_frames()
     f["ETHUSDT"] = frame(FULL_START, FULL_END, skip=gap18)
-    rep = dd.build_report(f)
+    rep = report(f)
     assert rep["blockers"] == []
     assert rep["symbols"]["ETHUSDT"]["insample"]["missing_days"] == 18
     assert rep["symbols"]["ETHUSDT"]["gaps_after_listing"] == [
         {"from": "2021-03-01", "to": "2021-03-18", "days": 18}]
     f["ETHUSDT"] = frame(FULL_START, FULL_END, skip=gap19)
-    rep = dd.build_report(f)
+    rep = report(f)
     assert any("ETHUSDT: in-sample eksik gün oranı" in b for b in rep["blockers"])
     assert rep["verdict"] == "VERİ ENGELLİ"
 
@@ -62,7 +72,7 @@ def test_insample_missing_threshold_is_strictly_more_than_one_percent():
 def test_pre_listing_days_are_not_missing():
     f = clean_frames()
     f["SOLUSDT"] = frame(date(2020, 9, 14), FULL_END)
-    rep = dd.build_report(f)
+    rep = report(f, SOLUSDT=date(2020, 9, 14))
     s = rep["symbols"]["SOLUSDT"]
     assert rep["blockers"] == []
     assert s["insample"]["from"] == "2020-09-14"
@@ -75,7 +85,7 @@ def test_pre_listing_days_are_not_missing():
 def test_missing_2024_12_31_bar_blocks_even_if_ratio_ok():
     f = clean_frames()
     f["BNBUSDT"] = frame(FULL_START, FULL_END, skip={date(2024, 12, 31)})
-    rep = dd.build_report(f)
+    rep = report(f)
     assert "BNBUSDT: 2024-12-31 günlük barı yok (E14/3)" in rep["blockers"]
     assert rep["symbols"]["BNBUSDT"]["insample"]["missing_days"] == 1
 
@@ -83,14 +93,14 @@ def test_missing_2024_12_31_bar_blocks_even_if_ratio_ok():
 def test_data_ending_before_2024_12_31_blocks():
     f = clean_frames()
     f["BNBUSDT"] = frame(FULL_START, date(2024, 12, 30))
-    rep = dd.build_report(f)
+    rep = report(f)
     assert "BNBUSDT: 2024-12-31 günlük barı yok (E14/3)" in rep["blockers"]
 
 
 def test_symbol_listed_after_insample_has_no_e14_3_blocker():
     f = clean_frames()
     f["BNBUSDT"] = frame(date(2025, 1, 10), FULL_END)
-    rep = dd.build_report(f)
+    rep = report(f, BNBUSDT=date(2025, 1, 10))
     assert not any("E14/3" in b for b in rep["blockers"])
     assert rep["symbols"]["BNBUSDT"]["insample"]["expected_days"] == 0
 
@@ -100,13 +110,15 @@ def test_symbol_listed_after_insample_has_no_e14_3_blocker():
     (lambda df: df.assign(open=df["open"].where(df.index != 5, 0.0)), "sıfır/negatif fiyat"),
     (lambda df: df.assign(open=df["open"].where(df.index != 5, 200.0)), "open [low, high] dışında"),
     (lambda df: df.assign(close=df["close"].where(df.index != 5, 1.0)), "close [low, high] dışında"),
-    (lambda df: df.assign(close=df["close"].where(df.index != 5, float("nan"))), "sayısal olmayan"),
+    (lambda df: df.assign(close=df["close"].where(df.index != 5, float("nan"))), "sonlu olmayan"),
+    (lambda df: df.assign(high=df["high"].where(df.index != 5, float("inf"))), "sonlu olmayan"),
+    (lambda df: df.assign(low=df["low"].where(df.index != 5, float("-inf"))), "sonlu olmayan"),
     (lambda df: pd.concat([df, df.iloc[[5]]], ignore_index=True), "tekrarlanan zaman damgası"),
 ])
 def test_bad_bars_block(mutate, label):
     f = clean_frames()
     f["ETHUSDT"] = mutate(frame(FULL_START, FULL_END))
-    rep = dd.build_report(f)
+    rep = report(f)
     bad = rep["symbols"]["ETHUSDT"]["bad_bars"]
     assert any(label in b for b in bad), bad
     assert any("ETHUSDT" in b and "E14/2" in b for b in rep["blockers"])
@@ -116,7 +128,7 @@ def test_common_holdout_end_is_earliest_last_day_and_holdout_stats_use_it():
     f = clean_frames()
     f["SOLUSDT"] = frame(FULL_START, date(2025, 6, 20))
     f["BTCUSDT"] = frame(FULL_START, FULL_END, skip={date(2025, 6, 20)})
-    rep = dd.build_report(f)
+    rep = report(f)
     assert rep["common_holdout_end"] == "2025-06-20"
     btc = rep["symbols"]["BTCUSDT"]
     assert btc["holdout"]["to"] == "2025-06-20"
@@ -130,7 +142,7 @@ def test_holdout_missing_ratio_blocks():
     f = clean_frames()
     skip = {date(2025, 2, 1) + timedelta(days=i) for i in range(5)}  # 5/181 > %1
     f["ETHUSDT"] = frame(FULL_START, FULL_END, skip=skip)
-    rep = dd.build_report(f)
+    rep = report(f)
     assert any("ETHUSDT: hold-out eksik gün oranı" in b for b in rep["blockers"])
 
 
@@ -139,12 +151,12 @@ def test_misaligned_timestamp_is_reported():
     df = frame(FULL_START, FULL_END)
     df.loc[3, "timestamp"] += 3_600_000
     f["BTCUSDT"] = df
-    rep = dd.build_report(f)
+    rep = report(f)
     assert any("hizalı olmayan" in w for w in rep["symbols"]["BTCUSDT"]["warnings"])
 
 
 def test_report_contains_no_performance_fields():
-    rep = dd.build_report(clean_frames())
+    rep = report(clean_frames())
     text = str(rep).lower()
     for word in ("pnl", "profit", "pf", "drawdown", "trades", "equity"):
         assert f"'{word}'" not in text
@@ -213,3 +225,45 @@ def test_contracts_require_perpetual():
     info["symbols"].pop(1)
     with pytest.raises(dd.DataError, match="bulunamadı"):
         dd.fetch_contracts(FakeSession([], info))
+
+
+# ---------------------------------------------------------------- listeleme günü (ChatGPT PR #6 bulgu 1)
+def test_truncated_start_is_missing_not_pre_listing():
+    """onboardDate 2019, dosya 2024-12-31'de başlıyor → ~5 yıl EKSİK, engel."""
+    f = clean_frames()
+    f["BTCUSDT"] = frame(date(2024, 12, 31), FULL_END)
+    rep = report(f)
+    btc = rep["symbols"]["BTCUSDT"]
+    assert btc["listing_day"] == str(FULL_START)
+    assert btc["insample"]["expected_days"] == 1827
+    assert btc["insample"]["missing_days"] == 1826
+    assert btc["missing_before_first_bar"] == (date(2024, 12, 31) - FULL_START).days
+    assert any("BTCUSDT: in-sample eksik gün oranı" in b for b in rep["blockers"])
+    assert rep["verdict"] == "VERİ ENGELLİ"
+
+
+def test_file_starting_after_insample_cannot_fake_late_listing():
+    f = clean_frames()
+    f["ETHUSDT"] = frame(date(2025, 1, 10), FULL_END)
+    rep = report(f)  # onboardDate 2019
+    assert "ETHUSDT: 2024-12-31 günlük barı yok (E14/3)" in rep["blockers"]
+
+
+def test_first_bar_before_onboard_date_uses_first_bar():
+    """Borsa onboardDate'i ilk mumdan sonra olabilir; o zaman ilk mum listelemedir."""
+    f = clean_frames()
+    rep = report(f, BTCUSDT=date(2019, 10, 20))
+    btc = rep["symbols"]["BTCUSDT"]
+    assert btc["listing_day"] == str(FULL_START)
+    assert btc["onboard_day"] == "2019-10-20"
+    assert btc["missing_before_first_bar"] == 0
+    assert rep["blockers"] == []
+
+
+def test_missing_listing_info_blocks():
+    c = contracts()
+    c["SOLUSDT"]["onboardDate"] = None
+    rep = dd.build_report(clean_frames(), c)
+    assert any("SOLUSDT: listeleme bilgisi" in b for b in rep["blockers"])
+    rep = dd.build_report(clean_frames(), {k: v for k, v in c.items() if k != "SOLUSDT"})
+    assert any("SOLUSDT: listeleme bilgisi" in b for b in rep["blockers"])
