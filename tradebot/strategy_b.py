@@ -12,7 +12,7 @@ Tanımlar (bar = mevcut günlük bar; eksik gün satır olarak YOKTUR, E5/E5b):
 - exit_signal(t) = close(t) < çıkış kanalı(t). Önceki 20 bar yoksa False.
 - True range(t) = max(high−low, |high−close_önceki|, |low−close_önceki|);
   close_önceki = bir önceki MEVCUT barın kapanışı. İlk barın TR'si yoktur.
-- ATR (E6, Wilder): ilk değer = ilk 20 TR'nin (2.–21. bar) basit ortalaması,
+- ATR (E6 + E17, Wilder): ilk değer = ilk 20 TR'nin (2.–21. bar) basit ortalaması,
   sonrası ATR(t) = (ATR(t−1)·19 + TR(t)) / 20. ATR(t), t gününün kapanışında bilinir.
 Her değer yalnız t ve öncesindeki barlarla hesaplanır (lookahead yok; testlerle denetlenir).
 """
