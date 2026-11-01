@@ -4,6 +4,19 @@
 Karar Burak'ındır; karar verilene kadar yeni strateji, parametre değişikliği, backtest,
 hold-out, paper veya testnet koşusu **yapılmaz**.
 
+## 0. Burak'ın hedefi ve çerçeve (1 Kasım 2026, Burak'ın ifadesiyle)
+
+- Hedef: **gerçek parayla kullanılabilir bir sistem.** Mevcut stratejilerin (V1, V2,
+  Plan B v1) reddi kabul edilmiştir.
+- Bu hedef hiçbir kapıyı kısaltmaz: gerçek paraya ancak önceden yazılmış kurallarla
+  tek atış backtest kapıları + hold-out + 300 paper + 100 testnet geçildikten sonra,
+  küçük sermayeyle (100–500 $) gidilir (AGENTS.md).
+- Sonraki herhangi bir araştırma **gelir garantisi, kesin kazanç yolu veya önceki
+  kayıpları/emeği telafi etme aracı olarak sunulmaz.** Yeni bir araştırmanın da
+  reddedilmesi olası ve geçerli bir sonuçtur.
+- Bu belge onaylanana ve Burak ayrıca karar verene kadar yeni strateji, optimizasyon,
+  backtest, paper veya testnet başlatılmaz.
+
 ## 1. Mevcut durum (değişmez kararlar)
 
 | Strateji | Test | Sonuç | Kayıt |
