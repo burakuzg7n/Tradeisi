@@ -1,0 +1,172 @@
+{
+  "kind": "PLANB_DATA_HEALTH",
+  "note": "Yalnız veri sağlığı. Strateji/performans hesabı içermez.",
+  "source": "Binance USDⓈ-M Futures, PERPETUAL, 1d, son işlem fiyatı OHLC",
+  "insample": [
+    "2020-01-01",
+    "2024-12-31"
+  ],
+  "holdout": [
+    "2025-01-01",
+    "2026-10-31"
+  ],
+  "common_holdout_end": "2026-10-31",
+  "max_missing_ratio": 0.01,
+  "symbols": {
+    "BTCUSDT": {
+      "contract": {
+        "symbol": "BTCUSDT",
+        "contractType": "PERPETUAL",
+        "onboardDate": 1567965300000,
+        "status": "TRADING"
+      },
+      "file_sha256": "d0d7c252e73ac294468137c7e904aa18b2b3c6ec383e846c054fd5a87ce98e7d",
+      "rows": 2611,
+      "listing_day": "2019-09-08",
+      "onboard_day": "2019-09-08",
+      "first_day": "2019-09-08",
+      "missing_before_first_bar": 0,
+      "last_day": "2026-10-31",
+      "missing_after_listing": 0,
+      "gaps_after_listing": [],
+      "bad_bars": [],
+      "warnings": [],
+      "warmup_55_bar_done": "2019-11-01",
+      "insample": {
+        "from": "2020-01-01",
+        "to": "2024-12-31",
+        "expected_days": 1827,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      },
+      "insample_end_bar_present": true,
+      "holdout_end_bar_present": true,
+      "holdout": {
+        "from": "2025-01-01",
+        "to": "2026-10-31",
+        "expected_days": 669,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      }
+    },
+    "ETHUSDT": {
+      "contract": {
+        "symbol": "ETHUSDT",
+        "contractType": "PERPETUAL",
+        "onboardDate": 1574840700000,
+        "status": "TRADING"
+      },
+      "file_sha256": "81378f3a73504c8bade39b925aa1248a3146b131b5d8224454d9e97a6a8e132e",
+      "rows": 2531,
+      "listing_day": "2019-11-27",
+      "onboard_day": "2019-11-27",
+      "first_day": "2019-11-27",
+      "missing_before_first_bar": 0,
+      "last_day": "2026-10-31",
+      "missing_after_listing": 0,
+      "gaps_after_listing": [],
+      "bad_bars": [],
+      "warnings": [],
+      "warmup_55_bar_done": "2020-01-20",
+      "insample": {
+        "from": "2020-01-01",
+        "to": "2024-12-31",
+        "expected_days": 1827,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      },
+      "insample_end_bar_present": true,
+      "holdout_end_bar_present": true,
+      "holdout": {
+        "from": "2025-01-01",
+        "to": "2026-10-31",
+        "expected_days": 669,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      }
+    },
+    "SOLUSDT": {
+      "contract": {
+        "symbol": "SOLUSDT",
+        "contractType": "PERPETUAL",
+        "onboardDate": 1600066800000,
+        "status": "TRADING"
+      },
+      "file_sha256": "3c03e9e9ca82a9aa677874a0286209376162ad3dc8d713e29cf62623370154bd",
+      "rows": 2239,
+      "listing_day": "2020-09-14",
+      "onboard_day": "2020-09-14",
+      "first_day": "2020-09-14",
+      "missing_before_first_bar": 0,
+      "last_day": "2026-10-31",
+      "missing_after_listing": 0,
+      "gaps_after_listing": [],
+      "bad_bars": [],
+      "warnings": [],
+      "warmup_55_bar_done": "2020-11-07",
+      "insample": {
+        "from": "2020-09-14",
+        "to": "2024-12-31",
+        "expected_days": 1570,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      },
+      "insample_end_bar_present": true,
+      "holdout_end_bar_present": true,
+      "holdout": {
+        "from": "2025-01-01",
+        "to": "2026-10-31",
+        "expected_days": 669,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      }
+    },
+    "BNBUSDT": {
+      "contract": {
+        "symbol": "BNBUSDT",
+        "contractType": "PERPETUAL",
+        "onboardDate": 1581321600000,
+        "status": "TRADING"
+      },
+      "file_sha256": "f57ff7b14021bcdc2265443a6e7e3326e7ed300354a1c9b55e3263adf4c1871b",
+      "rows": 2456,
+      "listing_day": "2020-02-10",
+      "onboard_day": "2020-02-10",
+      "first_day": "2020-02-10",
+      "missing_before_first_bar": 0,
+      "last_day": "2026-10-31",
+      "missing_after_listing": 0,
+      "gaps_after_listing": [],
+      "bad_bars": [],
+      "warnings": [],
+      "warmup_55_bar_done": "2020-04-04",
+      "insample": {
+        "from": "2020-02-10",
+        "to": "2024-12-31",
+        "expected_days": 1787,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      },
+      "insample_end_bar_present": true,
+      "holdout_end_bar_present": true,
+      "holdout": {
+        "from": "2025-01-01",
+        "to": "2026-10-31",
+        "expected_days": 669,
+        "missing_days": 0,
+        "missing_ratio": 0.0,
+        "missing_ranges": []
+      }
+    }
+  },
+  "blockers": [],
+  "verdict": "VERİ UYGUN",
+  "downloaded_at_utc": "2026-11-01T19:11:52.035824+00:00"
+}
