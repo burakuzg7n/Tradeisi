@@ -16,7 +16,8 @@ Bir zaman damgasındaki (ts) akış:
      olsa stop); değilse hedef katı aşımı (LONG high > T) → T, maker.
   C) 23:45 mumunda hâlâ açıksa kapanışta zaman çıkışı close × (1 ∓ s), taker.
   D) Damga sonu: tüm çıkışlardan sonra bakiye ≤ 0 → sermaye tükendi (kalıcı).
-     Equity (MTM, son mevcut kapanış). Bu damgada kapanan tetiklerden emir:
+     Equity (MTM, son mevcut kapanış; tahakkuk eden funding değerleme anı = mum
+     kapanışı ts + 15dk'ya kadar, o an dahil). Bu damgada kapanan tetiklerden emir:
      miktar = risk × bakiye ÷ |P − M| (bakiye bu damganın çıkışlarından sonra).
 Funding: [dolum anı, çıkış anı] içindeki her 00/08/16 UTC anı için nominal × oran;
 dolum veya çıkış tam o ana denk gelirse ödenir. Çıkış anı: açılış çıkışlarında mumun
@@ -267,8 +268,10 @@ def run_v3(bars: dict, intents: dict, start_day: int, end_day: int,
             if ts not in data[sym]:
                 res.counters["mtm_carried_marks"] += 1
             sign = 1.0 if q.side == "long" else -1.0
+            # değerleme anı = bu damganın mum KAPANIŞI (ts + 15dk); o ana denk gelen
+            # funding (ör. 07:45 mumunun kapanışı 08:00) bu equity'ye dahildir
             eq += sign * (q.last_close - q.F) * q.qty - q.entry_fee \
-                - q.F * q.qty * fr * funding_count(q.fill_ts, ts)
+                - q.F * q.qty * fr * funding_count(q.fill_ts, ts + BAR_MS)
         eq_ts.append(ts)
         eq_val.append(eq)
         for it in by_trigger.get(ts, []):

@@ -84,9 +84,17 @@ def main():
           "| durum | pay |", "|---|---:|"]
     for k, v in all_reasons.most_common():
         L.append(f"| {k} | %{v / tot * 100:.1f} |")
-    L += ["", "Not: bu bir model tahminidir; gerçek piyasa rejimleri, oynaklık ve korelasyon bu",
-          "aralığın dışına düşebilir. Karar kuralı (§6b): alt uç < 1.300 ise koşu başlamaz;",
-          "kural sonuç görülmeden yeni ön-kayıtla değiştirilir (coin/risk eklenmez)."]
+    L += ["", "## Sınırlamalar",
+          "- Aralık, seçilmiş 36 sentetik koşunun **gözlenen** aralığıdır; güven aralığı veya",
+          "  gerçek piyasada ≥ 1.300 işlem garantisi değildir. Gerçek rejimler, oynaklık ve",
+          "  korelasyon bu aralığın dışına düşebilir.",
+          "- Sayılar **niyet** sayısıdır. Tam veride (eksik mum yok) her niyet bir işlemdir;",
+          "  motorla eşlik yalnız **bir** senaryoda ve **maliyetler kapalı** doğrulandı.",
+          "- **Sermaye tükenmesinin** (E16 karşılığı) işlem sayısını düşürmesi bu tahminin",
+          "  dışındadır; maliyetli gerçek koşuda sayı daha düşük olabilir.",
+          "- Eksik mumlar (dolum mumu yoksa iptal) sentetik veride yoktur.",
+          "", "Karar kuralı (§6b): alt uç < 1.300 ise koşu başlamaz; kural sonuç görülmeden yeni",
+          "ön-kayıtla değiştirilir (coin/risk eklenmez)."]
     out = ROOT / "reports" / "V3_FIZIBILITE.md"
     out.write_text("\n".join(L) + "\n", encoding="utf-8")
     print(f"aralık {lo}-{hi}; rapor {out.relative_to(ROOT)}")

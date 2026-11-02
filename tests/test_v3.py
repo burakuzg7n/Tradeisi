@@ -343,3 +343,20 @@ def test_synthetic_generator_shape_and_determinism():
     df = a["B"]
     assert (df["high"] >= df[["open", "close"]].max(axis=1)).all()
     assert (df["low"] <= df[["open", "close"]].min(axis=1)).all()
+
+
+def test_mtm_funding_accrues_at_bar_close_boundaries():
+    """ChatGPT PR denetimi: 07:45 mumunun kapanışı 08:00 → 08:00 funding o equity'de;
+    15:45 kapanışı 16:00 → 16:00 da dahil. Normal zaman çıkışında çift kesinti yok."""
+    b, i = long_setup()
+    r = run_v3(b, i, D, D, FULL)
+    F = 102 * 1.0003
+    q = 50.0
+    fee = F * q * 0.00055
+    fund = F * q * 0.0001
+    assert r.equity.loc[ts(D, 31)] == pytest.approx(10_000 + (103 - F) * q - fee - fund * 1)
+    assert r.equity.loc[ts(D, 62)] == pytest.approx(10_000 + (103 - F) * q - fee - fund * 1)
+    assert r.equity.loc[ts(D, 63)] == pytest.approx(10_000 + (103 - F) * q - fee - fund * 2)
+    t = r.trades[0]
+    assert t.funding == pytest.approx(fund * 3)
+    assert r.equity.loc[ts(D, 95)] == pytest.approx(10_000 + t.pnl)

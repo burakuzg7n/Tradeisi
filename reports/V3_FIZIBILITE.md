@@ -30,6 +30,15 @@ aynı 48 ay (1.461 gün), 5 sembol, 3 tohum/senaryo.
 | no_trigger | %34.3 |
 | min_stop | %16.4 |
 
-Not: bu bir model tahminidir; gerçek piyasa rejimleri, oynaklık ve korelasyon bu
-aralığın dışına düşebilir. Karar kuralı (§6b): alt uç < 1.300 ise koşu başlamaz;
-kural sonuç görülmeden yeni ön-kayıtla değiştirilir (coin/risk eklenmez).
+## Sınırlamalar
+- Aralık, seçilmiş 36 sentetik koşunun **gözlenen** aralığıdır; güven aralığı veya
+  gerçek piyasada ≥ 1.300 işlem garantisi değildir. Gerçek rejimler, oynaklık ve
+  korelasyon bu aralığın dışına düşebilir.
+- Sayılar **niyet** sayısıdır. Tam veride (eksik mum yok) her niyet bir işlemdir;
+  motorla eşlik yalnız **bir** senaryoda ve **maliyetler kapalı** doğrulandı.
+- **Sermaye tükenmesinin** (E16 karşılığı) işlem sayısını düşürmesi bu tahminin
+  dışındadır; maliyetli gerçek koşuda sayı daha düşük olabilir.
+- Eksik mumlar (dolum mumu yoksa iptal) sentetik veride yoktur.
+
+Karar kuralı (§6b): alt uç < 1.300 ise koşu başlamaz; kural sonuç görülmeden yeni
+ön-kayıtla değiştirilir (coin/risk eklenmez).
