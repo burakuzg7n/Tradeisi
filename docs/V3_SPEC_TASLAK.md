@@ -7,6 +7,8 @@ Bu belge onaylanıp birleştirilene kadar kod yazılmaz, veri indirilmez.
 **Rev. 3:** `d50973f` denetimi: giriş mumu açılışı stop ötesi, gap hedef maliyeti, ertelenmiş
 zaman çıkışı önceliği, gün ataması, örneklem gerekçesi, eksik mumda equity ve sermaye
 tükenmesi anı.
+**Rev. 4:** `618dc11` denetimi: ertelenmiş zaman çıkışının günü, dönem sonu günü eksik
+mum (geri dönüş yerine koşu engeli/ortak bitiş tanımı).
 
 Etiketler: **[KURAL]** bu belgenin kuralı · **[SAPMA]** AGENTS.md / önceki protokolden
 bilinçli, gerekçeli sapma (Burak onayı + bağımsız denetim gerekir).
@@ -43,7 +45,7 @@ içi hareket başlatır.
   listeleme = min(onboardDate, ilk mum); listeleme öncesi eksik sayılmaz; dönem içi eksik
   15m mum oranı bir sembolde **%1'i aşarsa**, bozuk mum (tekrar, sonlu olmayan/sıfır/negatif
   fiyat, high < low, open/close aralık dışı) varsa, veya in-sample'da 2024-12-31 23:45 mumu
-  yoksa koşu başlamaz. **Ortak bitiş** = sembollerin son TAM UTC gününün en erkeni; sonrası
+  yoksa koşu başlamaz. **Dönem sonu (d_son)** §4.9'daki tanımla seçilir; sonrası
   kullanılmaz. Eksikler raporda sembol başına listelenir.
 
 ## 3. Günlük gösterge (trend filtresi)
@@ -99,15 +101,26 @@ içi hareket başlatır.
    yok) ve bu durum raporda sayılır. Pozisyon bu yüzden ertesi güne taşınırsa, o sembolde
    pozisyon kapanana kadar yeni emir verilmez; ertesi günün kendi işlem hakkı (§4.2)
    aksi halde etkilenmez.
-   **Gün ataması [KURAL]:** zaman çıkışı, 23:45 mumunun ait olduğu UTC gününe (d) yazılır
-   (kapanış zaman damgası d+1 00:00 olsa da). Diğer tüm çıkışlar, yürütüldükleri mumun
-   açılış zaman damgasının UTC gününe yazılır. PF, işlem sayısı ve günlük seri aynı
-   atamayı kullanır.
-   **Dönem sonu [KURAL]:** dönemin son günü d_son'da açık pozisyon normalde o günün 23:45
-   kapanışında zaman çıkışıyla kapanır ve d_son'a yazılır (dönem içinde). d_son'un 23:45
-   mumu eksikse, dönem sonrasındaki veri kullanılmaz: pozisyon d_son'un **son mevcut
-   mumunun kapanışında** (aleyhe slippage, taker) tasfiye edilir — Plan B E13'teki gibi
-   dönem sonu verisine bakan onaylı bir varsayım; raporda ayrıca listelenir.
+   **Muhasebe günü [KURAL]** (PF, işlem sayısı, günlük seri, canlı erken uyarı hepsi aynı):
+   - **Normal zaman çıkışı** (23:45 mumunun kapanışında): o mumun UTC günü d (kapanış
+     zaman damgası d+1 00:00 olsa da).
+   - **Ertelenmiş zaman çıkışı** (23:45 eksik, sonraki mevcut açılışta): yürütüldüğü
+     mumun açılış zaman damgasının UTC günü (ör. pazartesi 23:45 yok, salı 00:30'da
+     çıkış → **salı**).
+   - **Diğer tüm çıkışlar:** yürütüldükleri mumun açılış zaman damgasının UTC günü.
+   - **Funding** muhasebe gününden bağımsız olarak **gerçek yürütme zaman damgasıyla**
+     hesaplanır (§5; normal zaman çıkışı için yürütme anı d+1 00:00 kabul edilir).
+   **Dönem sonu [KURAL] — geri dönüş yok, koşu engeli:** d_son, her sembolün d_son günü
+   **23:45 mumu mevcut** olacak şekilde seçilir:
+   - In-sample: d_son = 2024-12-31 sabit; herhangi bir sembolde bu günün 23:45 mumu yoksa
+     koşu **engellenir** (§2).
+   - Hold-out: d_son = (i) her sembolün son tam UTC gününden büyük olmayan ve (ii) beş
+     sembolün de o günün 23:45 mumunun mevcut olduğu **en geç** UTC günü. Seçim yalnız
+     mumların varlığına bakar, fiyatlara bakmaz; sonrası kullanılmaz.
+   - Böylece dönemin son günü her sembolde açık pozisyon 23:45 kapanışında normal zaman
+     çıkışıyla kapanır; "son mevcut mum" geri dönüşüne gerek kalmaz ve geriye yazma
+     olmaz. d_son'dan önceki bir günden ertelenmiş zaman çıkışı, d_son içindeki ilk
+     mevcut açılışta yürütülür.
 10. **Eksik mum (pozisyon açıkken):** o mum için kontrol yapılmaz; sonraki mevcut mumda
     (0)/(a)–(d) uygulanır.
 
@@ -192,7 +205,7 @@ içi hareket başlatır.
 - max DD (15m MTM equity) **< %30 [SAPMA — Z1]**
 - sermaye tükenmedi
 
-**Hold-out (2025-01-01 → ortak bitiş) — hepsi:** PF > 1,15 (AGENTS.md/V2 ile aynı);
+**Hold-out (2025-01-01 → d_son, §4.9) — hepsi:** PF > 1,15 (AGENTS.md/V2 ile aynı);
 günlük seri ortalaması > 0; max DD < %30; sermaye tükenmedi. (Hold-out ~22 ay; HAC t
 raporlanır ama kapı değildir — kısa dönemde güç düşük.)
 

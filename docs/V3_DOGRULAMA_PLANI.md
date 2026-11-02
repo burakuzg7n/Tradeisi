@@ -84,12 +84,28 @@ Canlıda kullanılacak **aynı kod yolu** (sinyal → emir → durum) ile:
 - **Sert durma:** hesap düşüşü (gerçekleşmiş + açık pozisyon değeri) Z1 = %30'a
   ulaşırsa dur. (Gap ve gecikme nedeniyle gerçekleşen kayıp %30'u aşabilir; bu bir
   garanti değildir.)
-- **Üretim maliyeti kontrolü (önceden sabit):** kontrol noktaları **50., 100. ve
-  sonrasında her 100.** canlı işlem. Ölçüt: işlem başına gerçekleşmiş toplam maliyet
-  (ücret + slippage + funding) R cinsinden **ortalaması** — medyan değil; kuyruk
-  maliyetleri ortalamaya girer. Model maliyetinin (aynı işlemler için modelin
-  hesaplayacağı maliyet) ortalamasını **%50'den fazla** aşarsa dur ve değerlendir. 90. ve
-  99. yüzdelik ayrıca raporlanır.
+- **Üretim maliyeti kontrolü (önceden sabit):**
+  - **Fiyat referansı = modelin aynı bacak için slippage'sız kullandığı fiyat:**
+    | Bacak | Referans fiyat |
+    |---|---|
+    | Market giriş | Emrin dolduğu 15m mumunun borsa açılışı (Binance kline open) |
+    | Stop | Stop fiyatı M |
+    | `gap_stop` / `gap_through_stop` / ertelenmiş zaman çıkışı | O mumun borsa açılışı |
+    | Normal zaman çıkışı | 23:45 mumunun borsa kapanışı |
+    | Hedef / `gap_target` | T (model slippage 0) |
+    Tetik kapanışı P referans **değildir** (P'den açılışa kadarki piyasa hareketi model
+    tarafından zaten ayrı ele alınır).
+  - **Gerçekleşmiş slippage (yönlü, aleyhe pozitif):** alış bacağında (dolum − ref),
+    satış bacağında (ref − dolum), USD = fark × miktar. Kısmi dolumlarda dolum fiyatı
+    **miktar ağırlıklı ortalama**dır.
+  - **İşlem maliyeti (R):** (gerçek ücretler + iki bacağın slippage USD'si + gerçek
+    funding) ÷ emir anında planlanan risk USD'si (§4.4'teki risk). **Model maliyeti (R):**
+    aynı işlem, aynı miktar ve aynı çıkış türü için modelin ücret oranları, %0,03
+    slippage (yalnız slippage'lı bacaklarda) ve %0,01 × funding anı sayısı; aynı payda.
+  - **Ölçüt:** kontrol noktalarında (**50., 100. ve sonra her 100.** canlı işlem)
+    o ana kadarki **tüm** canlı işlemler üzerinden Σ gerçek maliyet ÷ Σ model maliyeti.
+    Oran **> 1,5** ise dur ve değerlendir (kural/parametre değiştirilmez). Son kontrol
+    aralığının oranı, 90. ve 99. yüzdelik ayrıca **bilgi amaçlı** raporlanır.
 - **Performans erken uyarısı (tek tanım):**
   - Seri: canlı dönemin tüm UTC günleri için günlük net R toplamı (işlemsiz gün 0;
     gün ataması V3 §4.9).
