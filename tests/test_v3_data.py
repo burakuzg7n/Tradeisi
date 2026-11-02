@@ -140,3 +140,21 @@ def test_load_15m_roundtrip(tmp_path):
     frame(start=START, end=START).to_csv(p, index=False)
     df = vd.load_15m(p)
     assert len(df) == 96 and df.index[0] == ms(START)
+
+
+def test_gap_ranges_listed_and_match_counts():
+    f = clean()
+    drop = {ms(date(2021, 1, 5), s) for s in (3, 4, 5)} | {ms(date(2021, 1, 7), 95), ms(date(2021, 1, 8), 0)}
+    drop |= {ms(date(2021, 1, 12), 10)}
+    f["ADAUSDT"] = frame(drop=drop)
+    r = rep(f)
+    ins = r["symbols"]["ADAUSDT"]["insample"]
+    assert ins["gaps"] == [
+        {"from": "2021-01-05 00:45", "to": "2021-01-05 01:15", "bars": 3},
+        {"from": "2021-01-07 23:45", "to": "2021-01-08 00:00", "bars": 2},
+    ]
+    assert ins["missing_bars"] == sum(g["bars"] for g in ins["gaps"]) == 5
+    ho = r["symbols"]["ADAUSDT"]["holdout"]
+    assert ho["gaps"] == [{"from": "2021-01-12 02:30", "to": "2021-01-12 02:30", "bars": 1}]
+    md = vd.render_markdown(r)
+    assert "2021-01-05 00:45→2021-01-05 01:15 (3)" in md and "2021-01-12 02:30" in md

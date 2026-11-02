@@ -27,6 +27,11 @@ def main() -> int:
     if (report_dir / "V3_VERI_SAGLIK.json").exists():
         print("V3_VERI_SAGLIK.json zaten var: veri bir kez indirilir, yeniden indirilmez.")
         return 2
+    existing = [s for s in vd.SYMBOLS if (data_dir / f"{s}_15m.csv").exists()]
+    if existing:
+        print(f"Rapor yok ama {existing} CSV'leri var (yarım kalmış/elle eklenmiş?). "
+              "Üzerine yazılmaz; Claude'a haber ver.")
+        return 2
     session = requests.Session()
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     contracts = dd.fetch_contracts(session, vd.SYMBOLS)
@@ -35,16 +40,18 @@ def main() -> int:
     for sym in vd.SYMBOLS:
         print(f"İndiriliyor: {sym} 15m (PERPETUAL) — birkaç dakika sürebilir", flush=True)
         rows = vd.download_15m_rows(sym, session, now_ms, start)
-        path = data_dir / f"{sym}_15m.csv"
-        dd.save_daily(dd.rows_to_frame(rows), path)
-        frames[sym] = dd.load_daily_raw(path)
-        hashes[sym] = dd.file_sha256(path)
-        print(f"  {path.name}: {len(frames[sym])} satır", flush=True)
+        tmp = data_dir / f"{sym}_15m.csv.indiriliyor"      # yarım kalırsa asıl dosya oluşmaz
+        dd.save_daily(dd.rows_to_frame(rows), tmp)
+        frames[sym] = dd.load_daily_raw(tmp)
+        hashes[sym] = dd.file_sha256(tmp)
+        print(f"  {sym}: {len(frames[sym])} satır", flush=True)
     rep = vd.build_report(frames, contracts, hashes)
     rep["downloaded_at_utc"] = datetime.now(timezone.utc).isoformat()
     (report_dir / "V3_VERI_SAGLIK.json").write_text(
         json.dumps(rep, ensure_ascii=False, indent=2), encoding="utf-8")
     (report_dir / "V3_VERI_SAGLIK.md").write_text(vd.render_markdown(rep), encoding="utf-8")
+    for sym in vd.SYMBOLS:                                  # rapor yazıldıktan SONRA yerine koy
+        (data_dir / f"{sym}_15m.csv.indiriliyor").replace(data_dir / f"{sym}_15m.csv")
     print(f"\n=== {rep['verdict']} ===")
     for b in rep["blockers"]:
         print("  ENGEL:", b)

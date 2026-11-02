@@ -91,14 +91,24 @@ def bad_bars(df: pd.DataFrame) -> list:
 
 
 def _bars_in(present: set, first_bar: int, start_ms: int, end_ms_excl: int) -> dict:
+    """Dönem kapsamı + eksik mum boşlukları (her biri: ilk/son eksik mumun açılışı, adet)."""
     s = max(start_ms, first_bar)
     if s >= end_ms_excl:
-        return {"expected_bars": 0, "missing_bars": 0, "missing_ratio": 0.0}
+        return {"expected_bars": 0, "missing_bars": 0, "missing_ratio": 0.0, "gaps": []}
     expected = (end_ms_excl - s) // BAR_MS
-    have = sum(1 for t in range(s, end_ms_excl, BAR_MS) if t in present)
-    miss = expected - have
+    gaps: list = []
+    for t in range(s, end_ms_excl, BAR_MS):
+        if t in present:
+            continue
+        if gaps and gaps[-1][1] + BAR_MS == t:
+            gaps[-1][1] = t
+        else:
+            gaps.append([t, t])
+    miss = sum((b - a) // BAR_MS + 1 for a, b in gaps)
     return {"expected_bars": int(expected), "missing_bars": int(miss),
-            "missing_ratio": miss / expected if expected else 0.0}
+            "missing_ratio": miss / expected if expected else 0.0,
+            "gaps": [{"from": dd._iso(a), "to": dd._iso(b), "bars": int((b - a) // BAR_MS + 1)}
+                     for a, b in gaps]}
 
 
 def build_report(frames: dict, contracts: dict, file_hashes: dict | None = None,
@@ -194,6 +204,11 @@ def render_markdown(rep: dict) -> str:
         L += [f"### {s}", f"- Sözleşme: {c.get('contractType')} · onboard: {v['onboard']} · durum: {c.get('status')}",
               f"- sha256: `{v['file_sha256']}` · satır: {v['rows']} · ilk mum: {v['first_bar']} · "
               f"listeleme öncesi kesik: {v['missing_before_first_bar']} mum"]
+        for name in ("insample", "holdout"):
+            gaps = (v.get(name) or {}).get("gaps") or []
+            shown = ", ".join(f"{g['from']}→{g['to']} ({g['bars']})" for g in gaps[:50])
+            more = f" … +{len(gaps) - 50} boşluk (tamamı JSON'da)" if len(gaps) > 50 else ""
+            L.append(f"- {name} eksik mum boşlukları (UTC açılış, adet): " + (shown + more if gaps else "yok"))
         L += [f"- Uyarı: {w}" for w in v["warnings"]]
         L += [f"- Bozuk: {b}" for b in v["bad_bars"][:10]]
         L.append("")
