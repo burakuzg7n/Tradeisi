@@ -1,5 +1,9 @@
 # Sonraki yön — karar notu (1 Kasım 2026)
 
+**Geçmiş:** İlk sürüm PR #10 ile, bağımsız denetim tamamlanmadan birleştirildi. Denetim
+§3'teki planlama yönteminde iki düzeltme istedi (gerekli işlem sayısı; DD kapısının nasıl
+seçileceği); bunlar PR #11 ile düzeltildi. Sonuçlar ve ret kararları değişmedi.
+
 **Statü:** Yalnız seçeneklerin değerlendirmesi. Bu not hiçbir araştırmayı başlatmaz.
 Karar Burak'ındır; karar verilene kadar yeni strateji, parametre değişikliği, backtest,
 hold-out, paper veya testnet koşusu **yapılmaz**.
@@ -67,21 +71,37 @@ tartışmaya açılmaz ve değiştirilmez.**
 
 1. **Önce soru, sonra eşik.** Ne ölçülmek istendiği yazılır (ör. "işlem başına net
    beklenti > 0 mı?"). Eşikler bu soruya göre seçilir.
-2. **İşlem sıklığını gerçek sonuçlardan bağımsız tahmin et.** Kural mekaniğinden ve
-   sentetik veriden (gerçekçi oynaklıkta rastgele yürüyüş) sinyal ve işlem sayısı tahmin
-   edilir. Gerçek fiyat verisinde PnL'ye bakılarak işlem sayısı "denenmez".
-3. **Yeterli örneklem için süre hesabı.** Hedeflenen istatistiksel güven için gereken işlem
-   sayısı (örnek: beklentinin işaretini anlamlı ayırmak için) ve 2. adımdaki sıklıktan
-   gereken süre hesaplanır. Mevcut veri bu süreyi karşılamıyorsa ya tasarım değiştirilir
-   (sonuç görülmeden), ya daha uzun bir ileri test planlanır, ya da araştırma yapılmaz.
-4. **DD eşiğini riskle birlikte tasarla.** İşlem başına risk, eşzamanlı pozisyon sayısı ve
-   beklenen kazanma oranından, sıfır-beklentili (şanslı/şanssız olmayan) bir sistemin
-   sentetik veride göreceği DD dağılımı önceden çıkarılır; DD kapısı bu dağılıma göre
-   anlamlı bir yere konur.
-5. **Fizibilite kontrolünü kayda geçir.** 2–4. adımların sonuçları, kurallar ve kapılarla
-   birlikte, gerçek veride hiçbir koşu yapılmadan commit edilir ve bağımsız denetimden
-   geçer. Kapılar bu tahminle uyumsuzsa koşu başlamaz.
-6. **Veri ayrımı.** Hangi dönemin keşif, hangisinin doğrulama olduğu ve doğrulama
+2. **Kabul edilebilir zarar sınırını ÖNCE koy.** Gerçek parayla ne kadar düşüşün kabul
+   edilebileceği, sermaye ve risk toleransından (Burak'ın kararı) yazılır. DD kapısı bu
+   sınırdan gelir; bir simülasyonun ürettiği DD'ye uydurulmak için seçilmez.
+3. **İşlem sıklığını gerçek sonuçlardan bağımsız tahmin et — tek sayı değil, aralık.**
+   Kural mekaniğinden ve sentetik veriden (açıkça yazılmış varsayımlarla: oynaklık
+   düzeyleri, trend/yatay rejimler, kalın kuyruklar, semboller arası korelasyon) sinyal ve
+   işlem sayısı tahmin edilir. Sonuç, model varsayımlarına bağlı bir **fizibilite
+   tahminidir**; tek bir süre değil, varsayımlarla birlikte bir belirsizlik aralığı olarak
+   yazılır. Gerçek fiyat verisinde PnL'ye bakılarak işlem sayısı "denenmez".
+4. **Gerekli işlem sayısını yalnız bir güven düzeyinden çıkarma.** Örneklem planı en az
+   şunları açıkça belirtir: (a) ayırt edilmek istenen **asgari etki** (ör. işlem başına
+   net beklentinin hangi büyüklüğü anlamlı sayılır), (b) anlamlılık düzeyi ve **test gücü**,
+   (c) işlem getirilerinin **değişkenliği** (R cinsinden dağılım, kazanç/kayıp büyüklükleri
+   ve kuyruklar), (d) işlemler arasındaki **bağımlılık**: aynı piyasa hareketinden
+   etkilenen işlemler (ör. aynı gün birden fazla kripto sembolde giriş) bağımsız gözlem
+   sayılmayabilir; etkin örneklem ham işlem sayısından küçük olabilir. Gerekli süre, 3.
+   adımdaki sıklık aralığıyla birlikte bir aralık olarak hesaplanır. Mevcut veri bunu
+   karşılamıyorsa ya tasarım değiştirilir (sonuç görülmeden), ya daha uzun bir ileri test
+   planlanır, ya da araştırma yapılmaz.
+5. **Risk fizibilitesini senaryolarla değerlendir, eşiği senaryoya göre seçme.** Risk oranı,
+   pozisyon sayısı ve kazanma oranı DD dağılımını tek başına belirlemez; kazanç/kayıp
+   büyüklükleri, kuyruklar, semboller arası korelasyon, işlem sırası, maliyetler ve test
+   süresi de gerekir. Sentetik senaryolar, 2. adımdaki zarar sınırı altında tasarımın
+   uygulanabilir olup olmadığını değerlendirmek için kullanılır. Sıfır beklentili bir
+   simülasyon da şans etkisi içerir (DD'si dağılımdır, tek değer değildir); "şanssız
+   olmayan" bir referans değildir.
+6. **Fizibilite kontrolünü kayda geçir.** 2–5. adımların varsayımları ve sonuçları, kurallar
+   ve kapılarla birlikte, gerçek veride hiçbir koşu yapılmadan commit edilir ve bağımsız
+   denetimden geçer. Tasarım bu sınırlar altında uygulanabilir görünmüyorsa koşu başlamaz
+   (kapılar gevşetilmez).
+7. **Veri ayrımı.** Hangi dönemin keşif, hangisinin doğrulama olduğu ve doğrulama
    döneminin hiç görülmediği önceden yazılır.
 
 ## 4. Denetimin kapsamı ve sınırları (sonuçlar okunurken)
