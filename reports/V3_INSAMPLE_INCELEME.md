@@ -26,10 +26,16 @@ HAC: Bartlett, L = 7, T = 1461 gün (işlemsiz günler 0 dahil).
 
 ## 2. Equity ve en büyük düşüş
 
-- Başlangıç equity: 10,000.00 $ · son equity: 882.57 $ · en yüksek: 17,034.24 $ (2021-06-26 08:00)
-- En büyük düşüş: **%95.39** — zirve 17,034.24 $ (2021-06-26 08:00 UTC) → dip 785.21 $ (2024-12-18 18:30 UTC)
+Zaman damgaları equity değerinin **değerleme anıdır** (15m mumun kapanışı = açılış + 15 dk;
+arşivdeki `ts` sütunu mum açılışıdır).
+
+- Başlangıç equity: 10,000.00 $ · son equity: 882.57 $ · en yüksek: 17,034.24 $ (2021-06-26 08:15)
+- En büyük düşüş: **%95.39** — zirve 17,034.24 $ (2021-06-26 08:15 UTC) → dip 785.21 $ (2024-12-18 18:45 UTC)
 - Bu aralıkta açılıp kapanan işlem: **2739** (tam liste: `V3_INSAMPLE_INCELEME_dd_islemleri.csv`), net -15,291.47 $, kazanma %36.8, ortalama R -0.096
 - Çıkış sebepleri (aralık): {'stop': 1332, 'time_exit': 873, 'target': 534}
+- **Sınır:** zirve–dip equity farkı -16,249.04 $; listedeki işlemlerin toplamı bundan
+  farklıdır, çünkü liste yalnız aralıkta **açılıp kapanan** işlemleri içerir; sınırlarda açık
+  pozisyonların MTM/maliyet etkileri ayrıştırılmamıştır. Liste bu sınırla okunmalıdır.
 
 | Yıl | equity başı | sonu | min | max |
 |---|---:|---:|---:|---:|
@@ -52,6 +58,10 @@ Kontrol: brüt − slippage − ücret − funding = -9,117.43 $ (net -9,117.43 
 **Sınırlama:** slippage, arşivdeki dolum fiyatlarından **modelin sabit formülü** tersine
 çevrilerek bulundu; bu, motorun uyguladığı model slippage'ıdır, gerçek piyasa
 slippage'ı değildir. Arşivde ham açılış/kapanış fiyatları ayrıca yok.
+**Bu bir aritmetik ayrıştırmadır:** miktarlar, işlem seçimi, hedefler ve bakiye yolu bu
+koşudan korunmuştur. "Maliyetsiz çalıştırılsaydı +X kazanırdı" veya "brüt üstünlük
+kanıtlandı" **denemez**; hedefler slippage'lı girişten hesaplandığından maliyetleri kaldırmak
+yürütme yolunu da değiştirirdi.
 **Not:** USD toplamları bakiyeye bağlı değişen işlem boyutundan etkilenir (bakiye
 düştükçe aynı R daha küçük USD'dir); R sütunu boyuttan bağımsız karşılaştırma içindir.
 
@@ -93,7 +103,7 @@ Brüt R (maliyet öncesi) dağılımı: ortalama 0.0191, medyan -0.5921, std 1.2
 | Plan B v1 | 1g | 37 | 5.935 | 3.434 | %20.4 | Ücret 35 $, funding 380 $ (toplamlar; işlem bazında arşiv yok) |
 | V3 | 15m | 3201 | 0.913 | -0.061 | %95.4 | Var (bu belge §3) |
 
-**Kanıtlanabilir ortaklıklar:**
+**Kanıtlanabilir ortaklıklar** ("sık işlem genel olarak kazandırmaz" sonucu bunlardan çıkarılamaz):
 - Gün içi (15m) üç stratejinin (V1, V2, V3) üçü de maliyetler dahil PF < 1 verdi (ölçüm).
 - Maliyetin brüt sonuca oranı yalnız V3 için ölçülebiliyor (§3); V1/V2 için işlem bazında
   arşiv olmadığından aynı ayrıştırma **yapılamaz**. "Ortak sebep maliyet" iddiası bu

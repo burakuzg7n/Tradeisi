@@ -102,16 +102,21 @@ def main() -> int:
     i_pk = int(np.argmax(e[:i_tr + 1]))
     pk_ts, tr_ts = int(eq.ts.iloc[i_pk]), int(eq.ts.iloc[i_tr])
     L += ["", "## 2. Equity ve en büyük düşüş", "",
+          "Zaman damgaları equity değerinin **değerleme anıdır** (15m mumun kapanışı = açılış + 15 dk;",
+          "arşivdeki `ts` sütunu mum açılışıdır).", "",
           f"- Başlangıç equity: {e[0]:,.2f} $ · son equity: {e[-1]:,.2f} $ · en yüksek: {e.max():,.2f} $ "
-          f"({iso(eq.ts.iloc[int(np.argmax(e))])})",
-          f"- En büyük düşüş: **%{dd*100:.2f}** — zirve {e[i_pk]:,.2f} $ ({iso(pk_ts)} UTC) → dip "
-          f"{e[i_tr]:,.2f} $ ({iso(tr_ts)} UTC)"]
+          f"({iso(eq.ts.iloc[int(np.argmax(e))] + 900_000)})",
+          f"- En büyük düşüş: **%{dd*100:.2f}** — zirve {e[i_pk]:,.2f} $ ({iso(pk_ts + 900_000)} UTC) → dip "
+          f"{e[i_tr]:,.2f} $ ({iso(tr_ts + 900_000)} UTC)"]
     in_dd = tr[(tr.fill_ts >= pk_ts) & (tr.exit_ts <= tr_ts + 900_000)]
     in_dd.to_csv(REP / "V3_INSAMPLE_INCELEME_dd_islemleri.csv", index=False)
     L += [f"- Bu aralıkta açılıp kapanan işlem: **{len(in_dd)}** (tam liste: "
           f"`V3_INSAMPLE_INCELEME_dd_islemleri.csv`), net {in_dd.pnl.sum():,.2f} $, "
           f"kazanma %{(in_dd.pnl > 0).mean()*100:.1f}, ortalama R {in_dd.r.mean():.3f}",
-          f"- Çıkış sebepleri (aralık): {in_dd.reason.value_counts().to_dict()}"]
+          f"- Çıkış sebepleri (aralık): {in_dd.reason.value_counts().to_dict()}",
+          f"- **Sınır:** zirve–dip equity farkı {e[i_tr] - e[i_pk]:,.2f} $; listedeki işlemlerin toplamı bundan",
+          "  farklıdır, çünkü liste yalnız aralıkta **açılıp kapanan** işlemleri içerir; sınırlarda açık",
+          "  pozisyonların MTM/maliyet etkileri ayrıştırılmamıştır. Liste bu sınırla okunmalıdır."]
     # yıllık equity (bilgi)
     eq["date"] = pd.to_datetime(eq.ts, unit="ms", utc=True)
     ye = eq.groupby(eq.date.dt.year)["equity"].agg(["first", "last", "min", "max"])
@@ -151,6 +156,10 @@ def main() -> int:
           "**Sınırlama:** slippage, arşivdeki dolum fiyatlarından **modelin sabit formülü** tersine",
           "çevrilerek bulundu; bu, motorun uyguladığı model slippage'ıdır, gerçek piyasa",
           "slippage'ı değildir. Arşivde ham açılış/kapanış fiyatları ayrıca yok.",
+          "**Bu bir aritmetik ayrıştırmadır:** miktarlar, işlem seçimi, hedefler ve bakiye yolu bu",
+          "koşudan korunmuştur. \"Maliyetsiz çalıştırılsaydı +X kazanırdı\" veya \"brüt üstünlük",
+          "kanıtlandı\" **denemez**; hedefler slippage'lı girişten hesaplandığından maliyetleri kaldırmak",
+          "yürütme yolunu da değiştirirdi.",
           "**Not:** USD toplamları bakiyeye bağlı değişen işlem boyutundan etkilenir (bakiye",
           "düştükçe aynı R daha küçük USD'dir); R sütunu boyuttan bağımsız karşılaştırma içindir."]
     # brüt R dağılımı
@@ -185,7 +194,7 @@ def main() -> int:
           f"| Plan B v1 | 1g | {pb['total_trades']} | {float(pb['profit_factor']):.3f} | {float(pb['expectancy_r']):.3f} | "
           f"%{float(pb['max_drawdown'])*100:.1f} | Ücret {float(pb['total_fees']):.0f} $, funding {float(pb['total_funding']):.0f} $ (toplamlar; işlem bazında arşiv yok) |",
           f"| V3 | 15m | {len(tr)} | {pf:.3f} | {tr.r.mean():.3f} | %{dd*100:.1f} | Var (bu belge §3) |", "",
-          "**Kanıtlanabilir ortaklıklar:**",
+          "**Kanıtlanabilir ortaklıklar** (\"sık işlem genel olarak kazandırmaz\" sonucu bunlardan çıkarılamaz):",
           "- Gün içi (15m) üç stratejinin (V1, V2, V3) üçü de maliyetler dahil PF < 1 verdi (ölçüm).",
           "- Maliyetin brüt sonuca oranı yalnız V3 için ölçülebiliyor (§3); V1/V2 için işlem bazında",
           "  arşiv olmadığından aynı ayrıştırma **yapılamaz**. \"Ortak sebep maliyet\" iddiası bu",
