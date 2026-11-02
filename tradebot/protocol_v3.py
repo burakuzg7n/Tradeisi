@@ -33,7 +33,7 @@ import pandas as pd
 from . import daily_data as dd
 from . import strategy_v3 as sv
 from . import v3_data as vd
-from .engine_v3 import V3Params, V3Result, newey_west_t, run_v3
+from .engine_v3 import V3Params, V3Result, V3Trade, newey_west_t, run_v3
 from .protocol_planb import git_state
 from .protocol_v2 import _acquire_lock, _clean, _norm_bytes, seal, verify_seal
 
@@ -314,9 +314,9 @@ def _write_archive(res: V3Result, p: V3Params, out_path: Path) -> dict:
         "daily": stem.with_name(stem.name + "_gunluk.csv"),
         "equity": stem.with_name(stem.name + "_equity.csv"),
     }
+    cols = [f.name for f in dataclasses.fields(V3Trade)] + ["r"]     # işlem olmasa da başlık
     pd.DataFrame([dataclasses.asdict(t) | {"r": t.r} for t in res.trades],
-                 columns=[f.name for f in dataclasses.fields(res.trades[0])] + ["r"]
-                 if res.trades else None).to_csv(files["trades"], index=False)
+                 columns=cols).to_csv(files["trades"], index=False)
     r_d = res.daily_returns(p.initial_balance)
     pd.DataFrame({"day": r_d.index, "date": [str(dd.day_date(d)) for d in r_d.index],
                   "r_d": r_d.to_numpy()}).to_csv(files["daily"], index=False)

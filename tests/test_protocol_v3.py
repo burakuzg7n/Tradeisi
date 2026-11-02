@@ -290,3 +290,11 @@ def test_raw_archive_allows_independent_recompute(tmp_path):
     m, se, L, t = pv.newey_west_t(daily["r_d"].to_numpy())
     assert t == pytest.approx(float(r["metrics"]["daily"]["hac_t"]))
     assert daily["r_d"].sum() * 10_000 == pytest.approx(tr["pnl"].sum())
+
+
+def test_archive_trades_csv_has_header_without_trades(tmp_path):
+    from tradebot.engine_v3 import V3Result
+    res = V3Result(trades=[], equity=pd.Series([10_000.0], index=[0]), start_day=1, end_day=2)
+    a = pv._write_archive(res, V3Params(), tmp_path / "V3_INSAMPLE.json")
+    tr = pd.read_csv(tmp_path / a["trades"]["file"])
+    assert len(tr) == 0 and "pnl" in tr.columns and "r" in tr.columns
