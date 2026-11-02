@@ -95,13 +95,25 @@ Canlıda kullanılacak **aynı kod yolu** (sinyal → emir → durum) ile:
     | Hedef / `gap_target` | T (model slippage 0) |
     Tetik kapanışı P referans **değildir** (P'den açılışa kadarki piyasa hareketi model
     tarafından zaten ayrı ele alınır).
-  - **Gerçekleşmiş slippage (yönlü, aleyhe pozitif):** alış bacağında (dolum − ref),
-    satış bacağında (ref − dolum), USD = fark × miktar. Kısmi dolumlarda dolum fiyatı
-    **miktar ağırlıklı ortalama**dır.
+  - **Emir başına TEK referans [KURAL]:** her bacak için referans, yukarıdaki tabloda
+    modelin o bacağı yürüttüğü **ilk** an/fiyattır (ör. market girişte emrin gönderildiği
+    15m mumunun açılışı). Emir birden fazla parçada veya birden fazla mumda dolsa bile
+    **tüm parçalar bu tek referansla** karşılaştırılır; sonraki mumların açılışları
+    referans olmaz. Böylece dolumdaki gecikme ve parçalı dolumun fiyat etkisi maliyete
+    dahil olur (uygulama açığı / implementation shortfall).
+  - **Gerçekleşmiş slippage (yönlü, aleyhe pozitif):** her dolum parçası i için alışta
+    (dolum_i − ref) × miktar_i, satışta (ref − dolum_i) × miktar_i; bacağın slippage
+    USD'si bunların **toplamı**dır (eşdeğer olarak: miktar ağırlıklı ortalama dolum − ref,
+    çarpı **dolan** miktar).
+  - **Dolmayan miktar:** maliyet hesabına dolmuş gibi girmez. Ücret, slippage, funding ve
+    R paydası yalnız **dolan miktar** üzerinden hesaplanır. Bir giriş emrinin dolmayan
+    kısmı iptal edilir ve "uygulanamayan miktar" olarak §3c-5'teki uygulanamayan oran
+    ölçütüne (miktar oranı olarak) ayrıca yazılır.
   - **İşlem maliyeti (R):** (gerçek ücretler + iki bacağın slippage USD'si + gerçek
-    funding) ÷ emir anında planlanan risk USD'si (§4.4'teki risk). **Model maliyeti (R):**
-    aynı işlem, aynı miktar ve aynı çıkış türü için modelin ücret oranları, %0,03
-    slippage (yalnız slippage'lı bacaklarda) ve %0,01 × funding anı sayısı; aynı payda.
+    funding) ÷ [emir anında planlanan risk USD'si × (dolan giriş miktarı ÷ planlanan
+    miktar)]. **Model maliyeti (R):** aynı işlem için, **aynı dolan miktar**, aynı tek
+    referans fiyatları ve aynı çıkış türüyle modelin ücret oranları, %0,03 slippage
+    (yalnız slippage'lı bacaklarda) ve %0,01 × funding anı sayısı; aynı payda.
   - **Ölçüt:** kontrol noktalarında (**50., 100. ve sonra her 100.** canlı işlem)
     o ana kadarki **tüm** canlı işlemler üzerinden Σ gerçek maliyet ÷ Σ model maliyeti.
     Oran **> 1,5** ise dur ve değerlendir (kural/parametre değiştirilmez). Son kontrol
