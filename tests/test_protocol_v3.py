@@ -271,3 +271,22 @@ def test_production_gates_and_edges():
     assert pv.evaluate(_m(profit_factor=1.16, total_trades=5, daily={"mean": 0.001, "hac_t": float("nan")}),
                        "holdout")["passed"] is True
     assert pv.evaluate(_m(profit_factor=1.16, daily={"mean": -0.001, "hac_t": 3}), "holdout")["passed"] is False
+
+
+def test_raw_archive_allows_independent_recompute(tmp_path):
+    data, rep = _env(tmp_path)
+    r = run("insample", data, rep)
+    a = r["archive"]
+    for k in ("trades", "daily", "equity"):
+        assert pv.dd.file_sha256(rep / a[k]["file"]) == a[k]["sha256"]
+    tr = pd.read_csv(rep / a["trades"]["file"])
+    assert len(tr) == r["metrics"]["total_trades"]
+    gp, gl = tr.loc[tr.pnl > 0, "pnl"].sum(), -tr.loc[tr.pnl <= 0, "pnl"].sum()
+    assert gp / gl == pytest.approx(float(r["metrics"]["profit_factor"]))
+    eq = pd.read_csv(rep / a["equity"]["file"])["equity"].to_numpy()
+    peak = np.maximum.accumulate(eq)
+    assert ((peak - eq) / peak).max() == pytest.approx(float(r["metrics"]["max_drawdown"]))
+    daily = pd.read_csv(rep / a["daily"]["file"])
+    m, se, L, t = pv.newey_west_t(daily["r_d"].to_numpy())
+    assert t == pytest.approx(float(r["metrics"]["daily"]["hac_t"]))
+    assert daily["r_d"].sum() * 10_000 == pytest.approx(tr["pnl"].sum())

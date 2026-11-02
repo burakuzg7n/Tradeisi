@@ -282,6 +282,7 @@ def run_protocol(phase: str, data_dir: Path, report_dir: Path, symbols=SYMBOLS,
     res = run_v3(cut_bars, intents, start, end, p)
     m = metrics(res, p)
     verdict = evaluate(m, phase, gi if phase == "insample" else gh)
+    archive = _write_archive(res, p, out_path)
 
     report = {
         "version": VERSION, "phase": phase,
@@ -290,7 +291,7 @@ def run_protocol(phase: str, data_dir: Path, report_dir: Path, symbols=SYMBOLS,
         "gate_thresholds": gi if phase == "insample" else gh,
         "gates": verdict["gates"], "gates_passed": verdict["passed"],
         "verdict": "GEÇTİ" if verdict["passed"] else "KALDI",
-        "metrics": m, "data": data_meta, "slice_hashes": slice_hashes,
+        "metrics": m, "archive": archive, "data": data_meta, "slice_hashes": slice_hashes,
         "code_fingerprint": fp, "protocol_config": cfg, "git": git,
         "env": {"python": platform.python_version(), "pandas": pd.__version__, "numpy": np.__version__},
         "notes": NOTES,
@@ -302,6 +303,26 @@ def run_protocol(phase: str, data_dir: Path, report_dir: Path, symbols=SYMBOLS,
     os.replace(tmp, out_path)
     out_path.with_suffix(".md").write_text(render_markdown(report), encoding="utf-8")
     return report
+
+
+def _write_archive(res: V3Result, p: V3Params, out_path: Path) -> dict:
+    """Ham sonuç arşivi (bağımsız yeniden hesap için): tüm işlemler, günlük seri, 15m
+    equity yolu. Dosyaların sha256'ları mühürlü rapora yazılır."""
+    stem = out_path.with_suffix("")
+    files = {
+        "trades": stem.with_name(stem.name + "_islemler.csv"),
+        "daily": stem.with_name(stem.name + "_gunluk.csv"),
+        "equity": stem.with_name(stem.name + "_equity.csv"),
+    }
+    pd.DataFrame([dataclasses.asdict(t) | {"r": t.r} for t in res.trades],
+                 columns=[f.name for f in dataclasses.fields(res.trades[0])] + ["r"]
+                 if res.trades else None).to_csv(files["trades"], index=False)
+    r_d = res.daily_returns(p.initial_balance)
+    pd.DataFrame({"day": r_d.index, "date": [str(dd.day_date(d)) for d in r_d.index],
+                  "r_d": r_d.to_numpy()}).to_csv(files["daily"], index=False)
+    eq = res.equity if res.equity is not None else pd.Series(dtype=float)
+    pd.DataFrame({"ts": eq.index, "equity": eq.to_numpy()}).to_csv(files["equity"], index=False)
+    return {k: {"file": v.name, "sha256": dd.file_sha256(v)} for k, v in files.items()}
 
 
 def render_markdown(r: dict) -> str:
@@ -337,7 +358,9 @@ def render_markdown(r: dict) -> str:
           f"- Parmak izi `{r['code_fingerprint'][:16]}…` · git {g.get('commit')}",
           f"- Kilit öncesi değişmiş dosyalar: {g.get('changed_files_before_lock')}",
           "- Veri sha256: " + ", ".join(f"{s} `{h[:12]}…`" for s, h in r["data"]["file_sha256"].items()),
-          f"- Python {r['env']['python']}, pandas {r['env']['pandas']}", "", "## Notlar"]
+          f"- Python {r['env']['python']}, pandas {r['env']['pandas']}",
+          "- Ham sonuç arşivi (sha256 mühürlü raporda): " +
+          ", ".join(f"`{a['file']}`" for a in r["archive"].values()), "", "## Notlar"]
     L += [f"- {n}" for n in r["notes"]]
     L += ["", "> Kural: sonuç kapılarla raporlanır, süslenmez. KALDI ise V3 REDDEDİLDİ, parametre "
           "kurcalanmaz. GEÇTİ tek başına canlıya geçiş hakkı vermez (docs/V3_DOGRULAMA_PLANI.md)."]
