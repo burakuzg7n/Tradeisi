@@ -28,6 +28,11 @@ def main() -> None:
         start = datetime.now(timezone.utc) - timedelta(days=548)  # ~18 ay
     end = datetime.now(timezone.utc)
 
+    existing = [f"{s}_{i}.csv" for s in SYMBOLS for i in INTERVALS if (DATA_DIR / f"{s}_{i}.csv").exists()]
+    if existing:
+        # V1/V2 raporları bu dosyaların sha256'larına bağlı: üzerine yazmak kayıt bütünlüğünü bozar
+        print(f"Durduruldu: {existing} zaten var (V1/V2 arşiv verisi). Üzerine yazılmaz.")
+        return
     for symbol in SYMBOLS:
         for interval in INTERVALS:
             print(f"İndiriliyor: {symbol} {interval} ({start.date()} → {end.date()})")

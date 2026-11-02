@@ -1,67 +1,56 @@
-# TradeBot — HTF Bias + Liquidity Sweep + FVG Retest
+# Tradeİşi — kural bazlı kripto strateji araştırması
 
-Sıfırdan yazılmış, kural bazlı, risk kontrollü kripto trade sistemi.
-BTC/ETH · TradingView (Pine) + Python + CCXT · Tüm sistem UTC.
+Sıfırdan yazılmış, test protokolüyle çalışan bir strateji araştırma projesi.
+Kâr garantisi yoktur; kararları önceden sabitlenmiş kapılar verir (`AGENTS.md`).
 
-## Yapı
+## Durum (2 Kasım 2026)
+
+Dört strateji önceden yazılmış kurallarla, tek atış protokolüyle test edildi;
+**hepsi reddedildi.** Hiçbiri canlıya veya paper/testnet aşamasına geçmedi.
+
+| Strateji | Fikir | Sonuç | Rapor |
+|---|---|---|---|
+| V1 | 15m sweep + FVG (BTC/ETH) | Reddedildi (PF 0,78–0,82) | `reports/YILLIK_ANALIZ.md` |
+| V2 | 15m sweep + CHoCH (BTC/ETH) | Reddedildi (PF 0,80, DD %22) | `reports/V2_INSAMPLE.md` |
+| Plan B v1 | Günlük Donchian 55/20 (4 coin) | Reddedildi (37 işlem, DD %20) | `reports/PLANB_INSAMPLE.md` |
+| V3 | 15m Asya seansı kırılımı (5 altcoin) | Reddedildi (PF 0,91, DD %95) | `reports/V3_INSAMPLE.md`, `reports/V3_INSAMPLE_INCELEME.md` |
+
+Sonraki yön henüz kararlaştırılmadı: `docs/SONRAKI_YON_KARAR_NOTU.md`.
+Ayrıntılı geçmiş: `DEVIR_NOTU.md` (§0 güncel durum) ve `PROGRESS.md`.
+
+## Klasörler
 
 ```
-knowledge/     10 konu × 4 dosya — eğitim tabanı (Aşama 1 ✅)
-docs/          STRATEGY_BIBLE.md — stratejinin tek gerçek kaynağı (Aşama 2 ✅)
-pine/          TradingView indikatörü + webhook alert (Aşama 3 ✅)
-tradebot/      Python paketi:
-  config.py      tüm parametreler (tek yer)
-  structure.py   swing / BOS / CHoCH / HTF bias (lookahead'siz)
-  fvg.py         FVG tespiti
-  strategy.py    sinyal üretimi (Strategy Bible'ın kodu)
-  backtest.py    event-driven motor + metrikler + Monte Carlo
-  risk.py        risk engine (kill switch, position sizing)
-  journal.py     SQLite journal (sinyal + işlem kaydı)
-  server.py      FastAPI webhook + consumer (paper mode varsayılan)
-  execution.py   PaperExecutor + CcxtExecutor (borsa config'den)
-  data.py        veri indirme / yükleme / doğrulama
-scripts/       download_data.py, run_backtest.py
-tests/         29 test (lookahead, muhafazakârlık, kill switch, webhook...)
-reports/       backtest çıktıları
+AGENTS.md        Tüm asistanlar için kurallar (önce bunu oku)
+DEVIR_NOTU.md    Devir notu; §8 (V2) ve §9 (Plan B) bağlayıcı spesifikasyonlar
+PROGRESS.md      Zaman çizelgesi
+KURULUM.md       Python kurulumu (demo bölümü tarihsel)
+1_kurulum.bat    Kütüphaneleri kurar
+docs/            Spesifikasyonlar ve kararlar
+  SPEC_EKLERI.md          V2 + Plan B ekleri (E1–E17)
+  V3_SPEC_TASLAK.md       V3 kuralları
+  V3_DOGRULAMA_PLANI.md   V3 test sonrası doğrulama planı (uygulanmadı)
+  SONRAKI_YON_KARAR_NOTU.md  Seçenekler ve araştırma planlama yöntemi
+  STRATEGY_BIBLE.md       V1 strateji belgesi (tarihsel)
+  roadmap/                İlk yol haritası belgeleri
+tradebot/        Python paketi
+  backtest.py, strategy.py, strategy_v2.py, protocol_v2.py   V1/V2
+  daily_data.py, strategy_b.py, portfolio_b.py, protocol_planb.py   Plan B
+  v3_data.py, strategy_v3.py, engine_v3.py, protocol_v3.py, synthetic_v3.py   V3
+  risk.py, journal.py, server.py, execution.py, live.py, notify.py   V1 dönemi altyapı
+scripts/         Veri indirme, tek atış koşucuları, inceleme scriptleri
+tests/           pytest testleri (`python -m pytest tests/`)
+reports/         ARŞİV — sonuç raporları, kilitler, mühürler. Silinmez, değiştirilmez.
+knowledge/       ICT/SMC eğitim notları
+pine/            V1 TradingView göstergesi (tarihsel)
+data/            Fiyat verisi (git'te yok; sha256'ları raporlarda)
 ```
 
-## En Hızlı Yol: Demo Bakiye (Bybit testnet, sahte para)
+## Önemli
 
-**KURULUM.md'yi takip et** — TradingView gerekmez:
-`1_kurulum.bat` → Bybit testnet API anahtarı → `.env` doldur → `3_demo_baslat.bat`
-Bot her 15dk bar kapanışında tarar, setup olursa testnet'e emir atar,
-Telegram'a bildirir, journal.db'ye kaydeder (`scripts/live_runner.py`).
-
-## Hızlı Başlangıç
-
-```bash
-pip install -r requirements.txt
-
-# 1) Veri indir (Binance public, API key gerekmez, ~5 dk)
-python scripts/download_data.py
-
-# 2) Backtest (komisyon + slippage dahil, kabul kriterleri otomatik)
-python scripts/run_backtest.py
-python scripts/run_backtest.py BTCUSDT --no-session   # filtresiz karşılaştırma
-
-# 3) Testler
-python -m pytest tests/
-
-# 4) Webhook sunucusu (paper mode)
-cp .env.example .env   # düzenle
-uvicorn tradebot.server:app --port 8000
-```
-
-## Sıradaki Adımlar (roadmap)
-
-1. `download_data.py` + `run_backtest.py` → gerçek veride sonuçlar
-2. Kriterler geçerse (PF>1.3, DD<%15, 300+ işlem): Pine'ı TradingView'a kur,
-   webhook'u sunucuya bağla, 300+ paper trade
-3. Testnet 100+ işlem → canlı 100-500$
-
-## İlkeler
-
-- Backtest her zaman gerçekten KÖTÜ olmalı (muhafazakâr varsayımlar)
-- Parametre optimizasyonu = curve fitting = yasak
-- Stop her zaman borsada · 1R açılışta sabitlenir · kill switch manuel açılır
-- AI analiz eder, trade AÇMAZ
+- `reports/` ve `*.lock` dosyaları tek atış kayıtlarıdır; silinmez, elle değiştirilmez.
+- `data/` içindeki CSV'ler raporlardaki parmak izlerine bağlıdır; yeniden indirilmez
+  (indirme scriptleri dosya varsa durur).
+- Tek atış koşucularını çalıştıran `.bat` dosyaları kullanıldıktan sonra kökten
+  kaldırıldı (git geçmişinde duruyor); koşucular zaten ikinci çalıştırmayı reddeder.
+- `.env` gizli anahtarlar içerir; asla paylaşılmaz veya commit edilmez.

@@ -1,5 +1,12 @@
 # KURULUM — Sıfırdan Demo Bakiyeyle Çalıştırma
 
+> **TARİHSEL BELGE (Temmuz 2026, V1 dönemi).** Bu kılavuz V1 stratejisi için yazıldı;
+> V1 sonradan **reddedildi** (V2, Plan B v1 ve V3 de reddedildi — `README.md`).
+> Demo çalıştırıcı (`scripts/live_runner.py`) reddedilmiş V1 stratejisini çalıştırır;
+> **kullanılmamalı.** Bahsi geçen `2_backtest.bat` / `3_demo_baslat.bat` 2 Kasım 2026'da
+> kökten kaldırıldı (git geçmişinde duruyor). Yalnız Adım 1–2 (Python ve
+> `1_kurulum.bat`) hâlâ geçerlidir.
+
 Hedef: Bot, Bybit **testnet**'te (sahte para, sıfır risk) kendi kendine
 sinyal üretip emir göndersin, Telegram'dan sana haber versin.
 TradingView'a GEREK YOK — strateji doğrudan makinende çalışır.

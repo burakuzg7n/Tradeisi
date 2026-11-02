@@ -16,7 +16,6 @@ __pycache__/
 venv/
 
 # --- Proje disi / gecici ---
-denemeçpy.txt
 Thumbs.db
 .DS_Store
 desktop.ini
