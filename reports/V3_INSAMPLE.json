@@ -1,0 +1,249 @@
+{
+  "version": "V3",
+  "phase": "insample",
+  "run_utc": "2026-11-02T12:26:34+00:00",
+  "period": {
+    "start": "2021-01-01",
+    "end_inclusive": "2024-12-31"
+  },
+  "gate_thresholds": {
+    "min_pf": 1.3,
+    "min_trades": 1300,
+    "min_mean": 0.0,
+    "min_t": 2.0,
+    "max_dd": 0.3
+  },
+  "gates": {
+    "PF > 1.3": false,
+    "işlem >= 1300": true,
+    "günlük ortalama > 0.0": false,
+    "HAC t > 2.0 (nan → KALDI)": false,
+    "DD < %30": false,
+    "sermaye tükenmedi": true
+  },
+  "gates_passed": false,
+  "verdict": "KALDI",
+  "metrics": {
+    "total_trades": 3201,
+    "longs": 1614,
+    "shorts": 1587,
+    "profit_factor": 0.9125402587086651,
+    "max_drawdown": 0.9539042897878461,
+    "initial_balance": 10000.0,
+    "final_equity": 882.5673857301155,
+    "net_pnl": -9117.432614269885,
+    "expectancy_r": -0.06141246938931045,
+    "win_rate": 0.38019368947203996,
+    "total_fees": 7959.008036631113,
+    "total_funding": 695.9940941338022,
+    "daily": {
+      "days": 1461,
+      "mean": -0.0006240542514900683,
+      "hac_se": 0.00045734127930708424,
+      "hac_lag": 7,
+      "hac_t": -1.3645264045169292,
+      "mean_R_per_day_info": -0.13455257667021406
+    },
+    "exit_reasons": {
+      "target": 657,
+      "stop": 1532,
+      "time_exit": 1012
+    },
+    "counters": {
+      "orders": 3201,
+      "orders_cancelled_missing_fill_bar": 0,
+      "orders_skipped_busy": 0,
+      "orders_blocked_no_capital": 0,
+      "gap_through_stop": 0,
+      "gap_stop": 0,
+      "gap_target": 0,
+      "stop": 1532,
+      "target": 657,
+      "time_exit": 1012,
+      "time_exit_deferred": 0,
+      "mtm_carried_marks": 0,
+      "orders_pending_at_end": 0
+    },
+    "capital_exhausted": false,
+    "by_year": {
+      "2021": {
+        "trades": 922,
+        "net": 293.27,
+        "pf": 1.0048262248852435
+      },
+      "2022": {
+        "trades": 831,
+        "net": -7051.03,
+        "pf": 0.7556176603107839
+      },
+      "2023": {
+        "trades": 652,
+        "net": -1498.85,
+        "pf": 0.82068712353992
+      },
+      "2024": {
+        "trades": 796,
+        "net": -860.82,
+        "pf": 0.8626963003051287
+      }
+    },
+    "by_symbol": {
+      "AVAXUSDT": {
+        "trades": 702,
+        "net": -1957.51,
+        "pf": 0.9129430795748636
+      },
+      "DOGEUSDT": {
+        "trades": 599,
+        "net": -1963.3,
+        "pf": 0.899932353708287
+      },
+      "XRPUSDT": {
+        "trades": 547,
+        "net": -1652.79,
+        "pf": 0.9094046800168651
+      },
+      "ADAUSDT": {
+        "trades": 661,
+        "net": -2320.0,
+        "pf": 0.8904792534659579
+      },
+      "LINKUSDT": {
+        "trades": 692,
+        "net": -1223.83,
+        "pf": 0.9461229027609523
+      }
+    }
+  },
+  "archive": {
+    "trades": {
+      "file": "V3_INSAMPLE_islemler.csv",
+      "sha256": "a54d2679da74ae173116eea9bfd0e48336fa8b0695575ae81ed05023d9770ecd"
+    },
+    "daily": {
+      "file": "V3_INSAMPLE_gunluk.csv",
+      "sha256": "0ba493dba69b30893f8c63df01b24d2df31406fb2da6742bb33e54a395dfab85"
+    },
+    "equity": {
+      "file": "V3_INSAMPLE_equity.csv",
+      "sha256": "375b3d05b4f710b6ed070ffc4ca993d2b21838af7edbb336bdb23de354d2b504"
+    }
+  },
+  "data": {
+    "health_report_sha256": "5863ba5825cba11504fe317037e1a4f0243cfbef5b16addb5230b223e9733a75",
+    "file_sha256": {
+      "XRPUSDT": "84501b97127397b4fab329ff61442b8d85b9f4c2876f6ece6e2e5472eba20c95",
+      "DOGEUSDT": "685be21bc4994347226cb04e0b1969be96d3a320b125f54cf3da5dd76d09ea14",
+      "ADAUSDT": "73470c7d5993bb867773989378bb570eded769c28bcfa80969efa69f55c517cc",
+      "AVAXUSDT": "ed74df70c9820f05b25ec4097ce6f21a81d61ad3fa6cb6272c6ea0ffc6f73e57",
+      "LINKUSDT": "2a219b01dc436fe888cca6d36e68b8ba444f0e6d30b3680ecb16499b3c8f180a"
+    },
+    "d_son": "2026-11-01",
+    "symbols": {
+      "XRPUSDT": {
+        "listing": "2020-01-06 08:15",
+        "first_bar": "2020-01-06 08:15",
+        "last_bar": "2026-11-02 09:45"
+      },
+      "DOGEUSDT": {
+        "listing": "2020-07-10 09:00",
+        "first_bar": "2020-07-10 09:00",
+        "last_bar": "2026-11-02 09:45"
+      },
+      "ADAUSDT": {
+        "listing": "2020-01-31 08:00",
+        "first_bar": "2020-01-31 08:00",
+        "last_bar": "2026-11-02 09:45"
+      },
+      "AVAXUSDT": {
+        "listing": "2020-09-23 07:00",
+        "first_bar": "2020-09-23 07:00",
+        "last_bar": "2026-11-02 09:45"
+      },
+      "LINKUSDT": {
+        "listing": "2020-01-17 08:00",
+        "first_bar": "2020-01-17 08:00",
+        "last_bar": "2026-11-02 09:45"
+      }
+    }
+  },
+  "slice_hashes": {
+    "XRPUSDT": "0d21bfd9ebfd95317b95753721955c168c97a84d1fd8d3170dc9c84d6b857565",
+    "DOGEUSDT": "ca01e9f757075c1af014f8f404c3c9bf72ab2ba8d2b88256c40e44ec216684aa",
+    "ADAUSDT": "17939f0e87f81cc41be31e26be3b603c6bd14c074e251d393759abe6d474cfd3",
+    "AVAXUSDT": "dc5eb40aecd0f334bef61d9116484d57b1ccff6ad430569fd66c02609e48817a",
+    "LINKUSDT": "efa418f0115ee0eca4a362193b536ffb3f795c3ffeb705b02171774342c5052b"
+  },
+  "code_fingerprint": "9abf96b1db7183bfe3d0527d2cce078f110021821d0dca0f668bdf7e043458a6",
+  "protocol_config": {
+    "symbols": [
+      "XRPUSDT",
+      "DOGEUSDT",
+      "ADAUSDT",
+      "AVAXUSDT",
+      "LINKUSDT"
+    ],
+    "periods": {
+      "insample_start": "2021-01-01",
+      "insample_end": "2024-12-31",
+      "holdout_start": "2025-01-01"
+    },
+    "engine": {
+      "initial_balance": 10000.0,
+      "risk_per_trade": 0.01,
+      "taker_fee": 0.00055,
+      "maker_fee": 0.0002,
+      "slippage": 0.0003,
+      "funding_rate": 0.0001
+    },
+    "strategy": {
+      "asia_slots": [
+        0,
+        27
+      ],
+      "trigger_slots": [
+        28,
+        79
+      ],
+      "min_valid_bars": 90,
+      "sma_n": 20,
+      "min_stop": 0.01,
+      "rr": 2.0
+    },
+    "data": {
+      "max_missing_ratio": 0.01
+    },
+    "gates": {
+      "insample": {
+        "min_pf": 1.3,
+        "min_trades": 1300,
+        "min_mean": 0.0,
+        "min_t": 2.0,
+        "max_dd": 0.3
+      },
+      "holdout": {
+        "min_pf": 1.15,
+        "min_mean": 0.0,
+        "max_dd": 0.3
+      }
+    }
+  },
+  "git": {
+    "commit": "54fdfba039cfa6328c647c31d901e38200621a6e",
+    "changed_files_before_lock": [],
+    "dirty": false
+  },
+  "env": {
+    "python": "3.13.14",
+    "pandas": "3.0.3",
+    "numpy": "2.4.3"
+  },
+  "notes": [
+    "Sunuş (§2): yeni sembollerde önceden kaydedilmiş test; tam bağımsız piyasa kanıtı değildir.",
+    "DD 15 dakikalık kapanış MTM equity'sinden ölçülür; mum içi en kötü an görünmez. %30 DD sınırı gerçek işlemde bir durma garantisi değildir.",
+    "İstatistik ölçütü günlük seri r_d (tüm günler) üzerinde Newey–West HAC t'dir; %80 gücü garanti etmez. 1.300 işlem bir kapsam kararıdır.",
+    "Maliyet modeli (slippage %0,03, funding %0,01/an) sabit varsayımdır; üst sınır değildir."
+  ],
+  "insample_reference": null,
+  "integrity": "2b4f229eadcfa87a198770f852af8300daf42f80fc58243fdcea7c721b67d027"
+}
