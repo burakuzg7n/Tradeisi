@@ -62,23 +62,23 @@ sonra belirlenir.
 
 ## 5. Deneme geçmişi (kayıtlardan)
 
-**Dört ana strateji; toplam varyant/deneme sayısı kesin olarak doğrulanmadı.** Kayıtlarda
-görülen gerçek veri değerlendirmeleri (en az):
+**Dört ana strateji; toplam varyant/deneme sayısı kesin olarak doğrulanmadı.** Aşağıdaki
+tablo kayıtlarda **görülen** değerlendirme ve varyantları listeler. Satır sayısı ayrı koşu
+sayısının alt sınırı **değildir**: bazı satırlar aynı koşunun farklı görünümleri olabilir; kayıtta
+izi kalmamış ek koşular da olabilir.
 
-| # | Ne | Veri | Kayıt |
-|---|---|---|---|
-| 1 | V1, seans filtresi AÇIK | Bitstamp BTC/USD, 18 ay | `reports/BACKTEST_RAPORU.md` |
-| 2 | V1, seans filtresi KAPALI | aynı | aynı |
-| 3 | V1, 70/30 walk-forward (aynı yapılandırma, dönem bölme) | aynı | aynı |
-| 4 | V1 + hacim filtresi (seans açık) | aynı | `BACKTEST_RAPORU.md`, `ANALIZ.md` |
-| 5 | V1, seans açık, hacim filtresiz — BTC ve ETH ayrı, yıl yıl | Binance BTCUSDT/ETHUSDT 2020–2026 | `reports/YILLIK_ANALIZ.md` |
-| 6 | V1, seans açık + hacim filtresi — BTC ve ETH ayrı, yıl yıl | aynı | aynı |
-| 7 | V1 filtresiz örneklem (394 + 423 işlem) | aynı | aynı |
-| 8 | V2 in-sample tek atış | Binance BTCUSDT/ETHUSDT 2020–2024 (spot API) | `reports/V2_INSAMPLE.md` |
-| 9 | Plan B v1 in-sample tek atış | Binance perp günlük BTC/ETH/SOL/BNB 2020–2024 | `reports/PLANB_INSAMPLE.md` |
-| 10 | V3 in-sample tek atış | Binance perp 15m XRP/DOGE/ADA/AVAX/LINK 2021–2024 | `reports/V3_INSAMPLE.md` |
+| # | Ne | Veri | Kayıt | Not |
+|---|---|---|---|---|
+| 1 | V1, seans filtresi AÇIK | Bitstamp BTC/USD, 18 ay | `reports/BACKTEST_RAPORU.md` | |
+| 2 | V1, seans filtresi KAPALI | aynı | aynı | 1 ile karşılaştırmalı |
+| 3 | V1, 70/30 walk-forward | aynı | aynı | 1'in dönem bölümlemesi; ayrı koşu olup olmadığı belirsiz |
+| 4 | V1 + hacim filtresi (seans açık) | aynı | `BACKTEST_RAPORU.md`, `ANALIZ.md` | |
+| 5 | V1, seans açık, hacim filtresiz — BTC ve ETH, yıl yıl | Binance BTCUSDT/ETHUSDT 2020–2026 | `reports/YILLIK_ANALIZ.md` | Kaynaktaki "394 + 423 işlem" toplam örneklem açıklaması bu satıra ait olabilir; ayrı bir koşu olduğu doğrulanmadı |
+| 6 | V1, seans açık + hacim filtresi — BTC ve ETH, yıl yıl | aynı | aynı | |
+| 7 | V2 in-sample tek atış | Binance BTCUSDT/ETHUSDT 2020–2024 (spot API) | `reports/V2_INSAMPLE.md` | |
+| 8 | Plan B v1 in-sample tek atış | Binance perp günlük BTC/ETH/SOL/BNB 2020–2024 | `reports/PLANB_INSAMPLE.md` | |
+| 9 | V3 in-sample tek atış | Binance perp 15m XRP/DOGE/ADA/AVAX/LINK 2021–2024 | `reports/V3_INSAMPLE.md` | |
 
 Ayrıca: V1 dönemindeki maliyet modeli değişiklikleri (maker/taker ayrımı, %0,2 asgari stop)
 ve V2/Plan B/V3'ün **V1 sonuçları görüldükten sonra** seçilmiş olması seçim etkisi taşır.
-Kayıtlarda izi kalmamış ara denemeler olabilir; bu nedenle tablo bir alt sınırdır.
 BTC/ETH 2020–2026 ve BTC/ETH/SOL/BNB günlük verisi **görülmüş** veridir.
