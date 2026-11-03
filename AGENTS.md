@@ -16,6 +16,10 @@ geçerlidir.
    bir stratejiyi ayar çekerek kurtarmaya çalışma.
 3. **Kapı kriterleri sabittir:** Backtest PF > 1.3, DD < %15, 150+ işlem
    (V2 için), OOS sağlam → 300 paper → 100 testnet → ancak sonra 100-500$ canlı.
+   Bu özet tüm sürümlere tek eşik dayatmaz: sayısal kapılar ilgili stratejinin
+   önceden onaylanmış spesifikasyonundan okunur. Örneğin V3'ün %30 DD sınırı
+   `docs/V3_SPEC_TASLAK.md` §7'deki onaylı [SAPMA — Z1]'dir; V2'ye veya
+   yeni adaylara aktarılmaz. Bu açıklama mevcut kapıları değiştirmez.
 4. **Tek atış protokolü:** Kurallar veriye bakılmadan yazılır ve commit edilir.
    2020-2024 in-sample'da BİR kez test, sonra 2025+ hold-out. Kural değişirse
    yeni versiyon numarası + yeni tek atış. Aynı kuralda ikinci deneme yok.

@@ -22,12 +22,16 @@ Yeni aday önce kodsuz değerlendirme notuyla ele alınır; otomatik olarak V4'e
 
 | Strateji | Sonuç ve dönem | Kayıt |
 |---|---|---|
-| V1 | **RED** — BTC/ETH 2020–2026 değerlendirmeleri; PF yaklaşık 0,78–0,82 | `reports/YILLIK_ANALIZ.md`, `reports/BACKTEST_RAPORU.md` |
+| V1 | **RED** — 18 aylık Bitstamp BTC/USD tam dönem varyantları: PF 0,847 / 1,035 / 1,213; sonraki Binance BTC/ETH 2020–2026 incelemesi: yıllara göre tutarlı üstünlük yok | `reports/BACKTEST_RAPORU.md` (18 ay), `reports/YILLIK_ANALIZ.md` (6,5 yıl) |
 | V2 | **KALDI** — in-sample 2020–2024; PF 0,796, işlem 490, DD %22,37 | `reports/V2_INSAMPLE.json/.md/.lock`; sonuç commit'i `52239d7` |
 | Plan B v1 | **KALDI** — in-sample 2020–2024; PF 5,93, işlem 37, DD %20,36; E16 geçti | `reports/PLANB_INSAMPLE.json/.md/.lock`; sonuç commit'i `6c5ed47` |
 | V3 | **KALDI** — in-sample 2021–2024; PF 0,91254, işlem 3.201, DD %95,39, HAC t −1,36453; sermaye tükenmedi | `reports/V3_INSAMPLE.json/.md/.lock`; sonuç commit'i `4d55f57`; üç ham CSV arşivi |
 
 **Sonuçları okurken:**
+- V1'in 18 aylık tam dönem PF'leri seans kapalı / seans açık / seans açık + hacim
+  filtresi sırasındadır. Aynı rapordaki 70/30 ayrımının 19 işlemlik OOS PF'si 1,74'tür;
+  tam dönem sonucu veya stratejinin kabul edildiği anlamına gelmez. Eski özetlerdeki
+  yaklaşık 0,78–0,82 aralığı 6,5 yıllık değerlendirmeye aittir, 18 aylık rapora değil.
 - Plan B'nin yıl tablosu kapanan işlemlere göredir; takvim yılı equity getirisi değildir.
   122 kontenjan iptali, 122 bağımsız kaçırılmış fırsat veya iyileştirme kanıtı değildir.
 - PF kapanmış işlemlerden, DD açık pozisyonları da içeren equity'den hesaplanır.
@@ -45,6 +49,14 @@ hesabı sınırlar. V2'nin veri kaynağı spot API'dir. V3'ün işlem, günlük 
 equity arşivleri mevcuttur; arşivden yeniden hesap inceleme raporunda kayıtlıdır.
 Arşiv hash'leri değerlendirilirken kayıtlı CRLF/LF farkı dikkate alınır; arşivler değiştirilmez.
 Eski canlı katman gerçek parayla kullanılmaz; kayıtlı dört bulgu için C karar notu §4'e bak.
+
+**V2 tarihsel parmak izi:** `reports/V2_INSAMPLE.json` içindeki `2066b507…`,
+koşu commit'i `4e54362` dönemindeki dosyalara aittir. Güncel `225adaf` tabanında
+parmak izi `b8908cc5…` olur. V2 parmak izine giren dosyalarda bu iki commit arasındaki
+tek fark, `docs/SPEC_EKLERI.md` sonuna Plan B E11–E17 eklerinin eklenmesidir;
+V2 parmak izi bu belgenin tamamını kapsar. Bu belge PR'ı öncesi/sonrası parmak izinin
+aynı olması, V2'nin tarihsel raporuyla eşleştiği anlamına gelmez. Rapor yeniden
+mühürlenmez, kilit değiştirilmez; V2 reddi ve hold-out yasağı aynen korunur.
 
 **Tarihsel bölümler:** aşağıdaki eski seçenekler ve örnekler yeni görev/koşu izni değildir.
 §8 ve §9 bağlayıcı tarihsel strateji metinleri olarak aynen korunur; içlerindeki uygulama
