@@ -2,48 +2,66 @@
 
 Yazan: Claude (Fable 5) · 8 Temmuz 2026 · Kullanıcı: Burak
 
-## 0. GÜNCEL DURUM (1 Kasım 2026) — önce bunu oku
+## 0. GÜNCEL DURUM (3 Kasım 2026) — önce bunu oku
 
-**V1, V2 ve Plan B v1 REDDEDİLDİ.** Bu kararlar korunur; hiçbirinin hold-out'u koşulmaz,
-eşikleri ve parametreleri geriye dönük değiştirilmez. Burak'ın bir sonraki araştırma
-kararı verilene kadar yeni strateji, backtest, hold-out, paper veya testnet koşusu
-başlatılmaz. Seçenekler: `docs/SONRAKI_YON_KARAR_NOTU.md`.
+**V1, V2, Plan B v1 ve V3 REDDEDİLDİ.** Retler, eşikler, parametreler ve kilitler
+korunur; reddedilen stratejilerin hold-out'u koşulmaz. Aktif aday yoktur.
 
-| Strateji | Sonuç (in-sample 2020–2024, tek atış) | Kayıt |
+**Yön C:** aylık yaklaşık 100 $ birikim, gerçek para bağlamadan araştırma;
+henüz bulunmamış kâr bütçeye yazılmaz, aylık ikiye katlama hedef/kriter değildir.
+Karar: `docs/KARAR_NOTU_C_2026-11-02.md`.
+Cash-and-carry değerlendirmesi 3 Kasım'da **kullanıcı tercihiyle sonlandırıldı**;
+ekonomik uygulanamazlık kanıtlanmadı, eleme testi tamamlanmadı.
+Kayıt: `docs/ADAY_DEGERLENDIRME_CASH_AND_CARRY.md` §8.
+C kararı PR #17 (`789aef2`), sonlandırma kaydı PR #18 (`3eaa285`) ile main'e girdi.
+
+**Çalışma düzeni:** ChatGPT araştırma/tasarım/uygulamayı yürütür, Claude bağımsız
+denetler, Burak merge ve yeni aday/gerçek veri koşusu kararını verir.
+Bu devir yeni strateji, backtest, hold-out, paper, testnet veya canlı koşusu izni değildir.
+Yeni aday önce kodsuz değerlendirme notuyla ele alınır; otomatik olarak V4'e geçilmez.
+
+| Strateji | Sonuç ve dönem | Kayıt |
 |---|---|---|
-| V2 (§8 + SPEC_EKLERI E1–E10) | **KALDI** — PF 0,796 (> 1,3 ✗), işlem 490 (≥ 150 ✓), DD %22,37 (< %15 ✗). Koşu 2026-10-31 20:45 UTC, main @ `4e54362` | `reports/V2_INSAMPLE.json/.md/.lock`, commit `52239d7` |
-| Plan B v1 (§9 + SPEC_EKLERI E3b, E3c, E5–E9, E11–E17) | **KALDI** — PF 5,93 (> 1,3 ✓), işlem 37 (≥ 100 ✗), DD %20,36 (< %15 ✗), E16 ✓. Koşu 2026-11-01 19:57 UTC, main @ `d49785a`, kilit öncesi değişmiş dosya yok | `reports/PLANB_INSAMPLE.json/.md/.lock`, commit `6c5ed47`; veri: `reports/PLANB_VERI_SAGLIK.*` |
+| V1 | **RED** — BTC/ETH 2020–2026 değerlendirmeleri; PF yaklaşık 0,78–0,82 | `reports/YILLIK_ANALIZ.md`, `reports/BACKTEST_RAPORU.md` |
+| V2 | **KALDI** — in-sample 2020–2024; PF 0,796, işlem 490, DD %22,37 | `reports/V2_INSAMPLE.json/.md/.lock`; sonuç commit'i `52239d7` |
+| Plan B v1 | **KALDI** — in-sample 2020–2024; PF 5,93, işlem 37, DD %20,36; E16 geçti | `reports/PLANB_INSAMPLE.json/.md/.lock`; sonuç commit'i `6c5ed47` |
+| V3 | **KALDI** — in-sample 2021–2024; PF 0,91254, işlem 3.201, DD %95,39, HAC t −1,36453; sermaye tükenmedi | `reports/V3_INSAMPLE.json/.md/.lock`; sonuç commit'i `4d55f57`; üç ham CSV arşivi |
 
 **Sonuçları okurken:**
-- Plan B'nin yıllık tablosu işlemlerin **kapanış yılına** göredir; takvim yılı equity
-  getirisi değildir (işlemler yıl aşabilir). Kârın büyük kısmı 2021 ve 2024'te kapanan
-  az sayıda işlemden gelir; 37 işlem PF'ye güvenmek için azdır.
-- PF kapanmış işlemlerden, DD açık pozisyonları içeren günlük equity'den (E15) hesaplanır;
-  yüksek PF ile yüksek DD çelişmez.
-- Plan B raporundaki 122 "kontenjan iptali" bağımsız kaçırılmış fırsat sayısı **değildir**
-  (aynı sembolün ardışık günlerdeki sinyalleri tekrar sayılır) ve kontenjan artırmanın
-  sonucu iyileştireceğini göstermez.
-- Ders: Plan B'de 100 işlem eşiği, tasarımın üretebileceği işlem sayısı önceden
-  tahmin edilmeden konmuştu. Eşik geriye dönük değiştirilmez; gelecekteki araştırmalar
-  için planlama yöntemi karar notunun 3. bölümündedir.
+- Plan B'nin yıl tablosu kapanan işlemlere göredir; takvim yılı equity getirisi değildir.
+  122 kontenjan iptali, 122 bağımsız kaçırılmış fırsat veya iyileştirme kanıtı değildir.
+- PF kapanmış işlemlerden, DD açık pozisyonları da içeren equity'den hesaplanır.
+  Yüksek PF ile yüksek DD birbiriyle çelişmez.
+- V3'ün maliyet ayrıştırması mevcut işlem listesi üzerindedir; komisyonsuz bir
+  yeniden koşu veya “maliyetsiz kazanırdı” kanıtı değildir. Sık işlemin genel olarak
+  kazandırmayacağı sonucu çıkarılamaz. Ayrıntı: `reports/V3_INSAMPLE_INCELEME.md`.
+- Yeni adayda fizibilite ve örneklem planı sonuç görülmeden hazırlanır. Eski kapılar
+  geriye dönük değiştirilmez; yöntem: `docs/SONRAKI_YON_KARAR_NOTU.md` §3.
 
-**Denetimin kapsamı ve sınırları:** kod ve testler PR #1–#9 boyunca ChatGPT tarafından
-bağımsız incelendi, bulunan hatalar düzeltildi ve testlerle kapatıldı; sonuç raporlarının
-mühürü, kapıları, parmak izi ve iç tutarlılığı doğrulandı. Bu **hatasızlık garantisi
-değildir**. Raporlar tam işlem listesini ve günlük equity serisini arşivlemediği ve CSV'ler
-depoda olmadığı için PF/DD'nin ham sonuçlardan bağımsız yeniden hesabı sınırlı kalmıştır.
-V2 verisi spot API kaynaklıdır (perp değil). Ayrıntı: karar notu §4.
+**Denetimin kapsamı ve sınırları:**
+Önceki PR denetimleri ve geçen testler hatasızlık veya canlı işlem güvenliği garantisi
+değildir. V1/V2/Plan B için tam işlem/equity arşivlerinin yokluğu bağımsız yeniden
+hesabı sınırlar. V2'nin veri kaynağı spot API'dir. V3'ün işlem, günlük seri ve 15m
+equity arşivleri mevcuttur; arşivden yeniden hesap inceleme raporunda kayıtlıdır.
+Arşiv hash'leri değerlendirilirken kayıtlı CRLF/LF farkı dikkate alınır; arşivler değiştirilmez.
+Eski canlı katman gerçek parayla kullanılmaz; kayıtlı dört bulgu için C karar notu §4'e bak.
 
-## 1. Tek Paragraf Özet
+**Tarihsel bölümler:** aşağıdaki eski seçenekler ve örnekler yeni görev/koşu izni değildir.
+§8 ve §9 bağlayıcı tarihsel strateji metinleri olarak aynen korunur; içlerindeki uygulama
+talimatları tamamlanmıştır. Sonuç sonrası yeniden uygulama/koşu başlatılmaz.
 
-BTC/ETH için kural bazlı trade botu inşa edildi (SMC: HTF bias + liquidity
-sweep + FVG retest). Altyapı EKSİKSİZ ve test edilmiş (35 unit test):
-backtest motoru, risk engine, journal, Telegram, Bybit testnet canlı
-çalıştırıcı. Strateji V1, 6.5 yıl gerçek veri + 800 işlemle test edildi ve
-**REDDEDİLDİ** (PF 0.78-0.82). Bu, sürecin başarısı: zayıf strateji gerçek
-para yanmadan yakalandı. Sıradaki iş V2 stratejisi — altyapıya dokunma.
+## 1. Projenin özeti
+
+Depoda dört reddedilmiş stratejinin kodu, motorlar, veri sağlık kontrolleri,
+tek atış protokolleri ve sonuç arşivleri bulunur. Gerçek parayla kullanılabilirliği
+doğrulanmış bir strateji yoktur. Testler yazılım davranışını sınar; kâr kanıtı değildir.
+Önceki “sıradaki V2”, “altyapı eksiksiz” ve “35 test” ifadeleri güncel durum değildir.
+Güncel test sonucu her PR'ın belirli commit'i için raporlanır.
 
 ## 2. ASLA YAPMA Listesi (Burak'ın kendi roadmap kuralları)
+
+Bu liste ilk yol haritasının tarihsel kaydıdır. Sayısal kapılar ilgili stratejinin
+önceden onaylı spesifikasyonundan okunur; bu devir hiçbir eşiği değiştirmez.
 
 1. **Parametre optimizasyonu = curve fitting = YASAK.** V1'i ayar çekerek
    "kurtarmaya" çalışma. PF 0.82'lik sistem turlanarak 1.3 yapılır ve canlıda
@@ -58,7 +76,12 @@ para yanmadan yakalandı. Sıradaki iş V2 stratejisi — altyapıya dokunma.
    2020-2024'te bir kez test, 2025+ hold-out. Aynı veride deneme-yanılma
    döngüsü = arka kapıdan overfitting.
 
-## 3. Teknik Tuzaklar (saatlerimi yedi, senin yemesin)
+## 3. Teknik Tuzaklar (tarihsel ortam notları)
+
+Aşağıdaki OneDrive, araç adı ve ağ kısıtları önceki çalışma ortamının kaydıdır;
+her ortamda geçerli kabul edilmez. ChatGPT değişiklikleri GitHub bağlantısı üzerinden
+ayrı dal/PR ile iletebilir; dosya bütünlüğü ve diff kontrol edilir. Gerçek veri
+Burak'ın makinesindedir; devir sırasında veri indirilmez veya yeniden koşulmaz.
 
 - **OneDrive mount'ta Write/Edit araçları dosya kuyruğunu KESIYOR** (sync
   race, bazen null byte/hibrit içerik). Bu projede dosya yazmak için HER
@@ -86,17 +109,20 @@ para yanmadan yakalandı. Sıradaki iş V2 stratejisi — altyapıya dokunma.
 | Taker/taker ücret modeli dar stopla | 0.4R+/işlem maliyet — maker/taker ayrımı + min %0.2 stop şart |
 | V2 (sweep + CHoCH, 15M/4H) in-sample 2020–2024, tek atış | RED — PF 0.796, DD %22.37, 490 işlem (`reports/V2_INSAMPLE.md`) |
 | Plan B v1 (Donchian 55/20, günlük, BTC/ETH/SOL/BNB) in-sample 2020–2024, tek atış | RED — işlem 37 < 100, DD %20.36 > %15 (PF 5.93) (`reports/PLANB_INSAMPLE.md`) |
+| V3 (seans kırılımı, 15m) in-sample 2021–2024, tek atış | RED — PF 0,91254, işlem 3.201, DD %95,39, HAC t −1,36453 (`reports/V3_INSAMPLE.md`) |
 
 Detaylar: reports/YILLIK_ANALIZ.md, reports/BACKTEST_RAPORU.md, PROGRESS.md.
 
-## 5. Yeniden Kullanılabilir Varlıklar (sağlam, dokunma)
+## 5. Mevcut altyapı ve kullanım sınırı
 
-`tradebot/` paketi: backtest.py (motor), risk.py, journal.py, notify.py,
-execution.py, live.py (testnet runner), data.py, structure.py, fvg.py,
-sessions.py. Strateji SADECE strategy.py'de — V2 yeni bir strategy modülü
-olarak yazılır, gerisi aynen çalışır. 35 test: `python -m pytest tests/`.
-Kurulum: KURULUM.md + 1/2/2b/3 numaralı .bat'lar. Burak'ta Bybit testnet
-API + Telegram bot kurulu ve çalışıyor.
+`tradebot/` altında stratejiler, motorlar, protokol, veri, risk ve yürütme modülleri
+bulunur. Varlıkları “sağlam, aynen kullanılabilir” olarak kabul etme; yeni kullanım
+için ilgili kapsam ayrıca denetlenir.
+`live.py`, `execution.py`, `server.py` ve demo çalıştırıcı gerçek parayla kullanılmaz.
+C karar notu §4'teki bulguların düzeltilmesi bu devir PR'ının kapsamında değildir;
+kullanılacak mimari bir aday doğrulandıktan sonra belirlenir.
+Doğrulama komutu: `python -m pytest tests/`. Test sayısı/sonucu çalıştırılmadan
+iddia edilmez. Gerçek veri koşucuları ve tek atış .bat dosyaları denetimde çalıştırılmaz.
 
 ## 6. Kullanıcı Profili
 
@@ -105,7 +131,10 @@ somut sonuç ister; uzun sessizlik ve ret kararı moral bozuyor — dürüst kal
 ama emeğinin ürününü görünür kıl (rapor, grafik, Telegram). Türkçe konuşur.
 Referans kütüphaneler SADECE fikir için; kod sıfırdan yazılır (kendi kuralı).
 
-## 7. Gerçekçi Yol Haritası Seçenekleri
+## 7. Tarihsel yol haritası seçenekleri (8 Temmuz 2026)
+
+Aşağıdaki seçenekler geçmiş kayıttır; V2 ve Plan B tamamlandı ve reddedildi.
+Güncel iş listesi değildir. Aktif durum §0, yeni aday süreci C karar notu §3'tedir.
 
 a) **V2 (SMC ailesi):** sweep sonrası CHoCH konfirmasyonu (knowledge base'in
    kendi uyarısı; V1 bunu atlıyordu). Kuralları önceden yaz, tek atış test.
@@ -161,21 +190,25 @@ Aynı test protokolü (2020-24 in-sample, 2025+ hold-out, PF>1.3).
 Not: Günlük TF = az işlem ama düşük maliyet oranı ve on yıllardır belgeli
 anomali ailesi. V2 ile AYNI oturumda test edilebilir — iki bağımsız tek atış.
 
-## 10. "Para ile Para Kazanmak" — Dürüst Matematik (Burak'la paylaşıldı)
+## 10. Tarihsel ölçek örneğinin sınırı
 
-GERÇEKÇİ iyi senaryo bile şudur: +0.15R/işlem ortalama, çok sembolle yılda
-~150 işlem → ~+22R/yıl → %0.5 riskle **yılda ~%11**. 10.000$ ile ~1.100$/yıl,
-500$ ile ~55$/yıl. Bot zenginlik makinesi değil, SERMAYE ÇARPANIdır — küçük
-sermayede asıl kaldıraç sermayeyi büyütmektir, riski artırmak değil (risk
-2×'lenirse drawdown da 2×'lenir, %10 kill switch'e çarpar). Bu beklentiyi
-kabul etmeyen her plan, ya aşırı kaldıraca ya curve fitting'e sürükler —
-ikisinin de sonu aynı. Ayrıca: asistan yatırım danışmanı değildir; sistem
-kriterleri Burak'ın roadmap'inden gelir, kâr garantisi kimse veremez.
+Önceki metindeki +0,15R/işlem, yılda yaklaşık 150 işlem ve %0,5 risk örneği
+ölçülmüş getiri veya gelir tahmini değildi. Böyle bir beklenti mevcut stratejilerde
+doğrulanmadı. Risk iki katına çıkarılınca DD'nin tam iki kat olacağı veya bir
+durdurma eşiğinin kaybı garantiyle sınırlayacağı varsayılmaz.
+Güncel ilke: bulunmamış kâr bütçeye yazılmaz; aylık ikiye katlama kriter değildir
+(C karar notu §1).
 
-## 11. Sonraki Oturum İçin İlk Komutlar
+## 11. Sonraki oturum için iş akışı (3 Kasım 2026)
 
-(1 Kasım 2026 itibarıyla; eski 8 Temmuz talimatı — §8'i implemente et — tamamlandı.)
-1. `AGENTS.md`, bu dosyanın §0'ı ve `docs/SONRAKI_YON_KARAR_NOTU.md`'yi oku.
-2. **Burak'ın yön kararını bekle.** Karar verilmeden yeni strateji, parametre
-   değişikliği, backtest, hold-out, paper veya testnet koşusu başlatma.
-3. `reports/` ve `*.lock` dosyalarına, §8/§9'a ve `docs/SPEC_EKLERI.md`'ye dokunma.
+1. `AGENTS.md`, bu belgenin §0'ı, `reports/YILLIK_ANALIZ.md`, C karar notu ve
+   aday notunun §8'ini oku. GitHub'daki main/PR/commit durumunu doğrudan doğrula;
+   yerel fetch veya hareketli dal adı yerine inceleme tabanını tam SHA ile kaydet.
+2. ChatGPT'nin bu oturumdaki işi devir belgeleridir. Yeni aday varsa önce kodsuz
+   değerlendirme notu hazırlanır; Burak'ın ayrı kararı olmadan yeni aday uygulaması
+   veya gerçek veri/hold-out/paper/testnet/canlı koşusu başlatılmaz.
+3. `reports/`, kilitler, §8/§9, `docs/SPEC_EKLERI.md` ve V3 spesifikasyonu korunur.
+   §9 Plan B parmak izine dahildir; devirde metni birebir aynı kalmalıdır.
+4. ChatGPT ayrı `chatgpt/...` dalında PR hazırlar. Claude bağımsız denetler;
+   mutasyon testleri ayrı geçici kopyada yapılır. Burak, denetim ve gerekli testler
+   tamamlandıktan sonra merge kararını verir.
