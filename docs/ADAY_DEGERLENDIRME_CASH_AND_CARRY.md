@@ -75,11 +75,18 @@ sayılamaz: boşta duran tampon prim kazanmaz.
 
 ## 5. Ölçek (getiri tahmini DEĞİL)
 
-Yalnız büyüklük fikri için, iki varsayımla: pozisyon başına **maliyetler sonrası yıllık net prim
-oranı p** (pozisyon nominaline göre) ve sermayenin pozisyona bağlanan payı **u** (geri kalanı
-tampon). Toplam sermaye getirisi ≈ p × u. Hiçbiri ölçülmedi.
+Tanımlar: toplam sermaye **C**, spot alımına bağlanan tutar **A = D × S₀ / F₀** (§2), boşta kalan
+tampon C − A. Yalnız büyüklük fikri için iki varsayım (hiçbiri ölçülmedi):
 
-| Sermaye | p = %10, u = %100 | p = %10, u = %70 | Aylık karşılık (p %10, u %70) |
+- **p** = maliyetler sonrası yıllık net kazancın **spot alımına bağlanan tutara (A)** oranı
+  (USD nominali D'ye göre değil).
+- **u** = A / C, sermayenin pozisyona bağlanan payı.
+
+Bu tanımlarla toplam sermaye getirisi **tam olarak** = p × u (yaklaşıklık yok). Nominale göre
+tanımlanan bir oranla (p_D = net / D) çalışılırsa doğru ifade p_D × u × F₀/S₀ olur; iki tanım
+karıştırılmamalıdır.
+
+| Sermaye C | p = %10, u = %100 | p = %10, u = %70 | Aylık karşılık (p %10, u %70) |
 |---|---:|---:|---:|
 | 100 $ | 10 $/yıl | 7 $/yıl | ~0,6 $ |
 | 700 $ | 70 $/yıl | 49 $/yıl | ~4,1 $ |
