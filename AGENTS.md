@@ -36,11 +36,19 @@ geçerlidir.
   §8/§9 ifadesini o noktada değiştirir. Sonuç görüldükten sonra değiştirilemez;
   değişiklik = yeni versiyon.
 
-## Rol dağılımı (öneri)
-- **Claude:** kod yazma, backtest, test koşma.
-- **ChatGPT:** bağımsız kod/mantık incelemesi (lookahead, hatalı varsayım avı),
-  rapor ve doküman kontrolü, sonuçları kapı kriterlerine karşı doğrulama.
-- Gemini şu an projede YOK (pasif). Gerekirse sonra eklenir.
+## Rol dağılımı (3 Kasım 2026 — Burak'ın devir kararı)
+- **ChatGPT:** araştırma önerisi, tasarım, kod ve test uygulaması; değişiklikleri
+  `chatgpt/...` dalında Pull Request olarak hazırlar.
+- **Claude:** bağımsız kod/mantık, rapor ve doküman denetimi; spesifikasyon,
+  lookahead, maliyetler, sınır durumları ve test kapsamını kontrol eder.
+- Uygulayıcının kendi testleri bağımsız denetim sayılmaz. Claude'un mutasyon
+  testleri ayrı geçici kopyada yapılır; incelenen dal değiştirilmez.
+- **Burak:** yeni aday/gerçek veri koşusu kararını ve merge kararını verir.
+- Rol devri yeni strateji veya gerçek veri koşusu izni değildir. Retler, kilitler,
+  hold-out yasakları ve `docs/KARAR_NOTU_C_2026-11-02.md` kapsamı korunur.
+- Gerçek veri koşucuları denetim sırasında çalıştırılmaz; izin verilmiş bir koşu
+  Burak'ın makinesinde yürütülür. Sentetik testler gerçek tek atıştan ayrıdır.
+- Gemini şu an projede YOK (pasif).
 
 ## Dal (branch) düzeni
 - `main`: yalnız onaylı ve testten geçmiş kod.
