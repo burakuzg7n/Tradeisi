@@ -26,7 +26,8 @@ Burak ile 2 Kasım 2026 yazışması.
 ## 3. Yeni aday nasıl ele alınır
 
 1. Her aday önce `docs/` altında bir **aday değerlendirme notu** ile, **kod yazmadan** ele alınır
-   (ilk örnek: `ADAY_DEGERLENDIRME_CASH_AND_CARRY.md`). Not şu soruları cevaplar:
+   (ilk örnek: `ADAY_DEGERLENDIRME_CASH_AND_CARRY.md` — 3 Kasım 2026'da Burak'ın tercihiyle
+   sonlandırıldı; ekonomik eleme testi tamamlanmadı, bkz. o notun §8'i). Not şu soruları cevaplar:
    - Kazancın **ekonomik kaynağı** nedir — işlemin karşı tarafı neden sistematik olarak para
      bırakır? Bunu destekleyen **bağımsız** kanıt nedir?
    - Burak'ın sermayesiyle (100 $ başlangıç, aylık +100 $), asgari emirler ve **bütün**

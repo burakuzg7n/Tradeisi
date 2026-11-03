@@ -120,7 +120,41 @@ Hepsi **kod yazmadan, elle** toplanır ve bu belgeye eklenir:
 Bu kanıtlar olmadan, ya da bunlarla aday elenirse, **sonuç: aday yok** — motor, strateji veya
 veri altyapısı yazılmaz ve otomatik olarak başka bir stratejiye geçilmez.
 
+## 8. Toplanan gözlem ve değerlendirmenin sonlandırılması (3 Kasım 2026)
+
+**Gözlem (OKX, Burak'ın ekran görüntüleri, 21:04–21:09 TR saati):**
+- Hesap: spot modda, bakiye 0; vadeli işlem için hesap modu değişikliği gerekiyor.
+- Spot ücret (Regular): maker %0,08, taker %0,10. Vadeli ücretleri görüntülenmedi.
+- Spot BTC/USDT emir defteri: alış–satış farkı 0,1 USDT (tek an; vadeli spread ve çıkış
+  maliyetlerini doğrulamaz).
+- Vadeli `BTCUSD UM-27NOV26`: 21:09'da **son fiyat** 78.088,1; aynı ekranda spot BTC/USDT
+  son fiyat 77.824,5. Brüt fark ≈ %0,339 (≈ 24 gün; basit yıllıklandırma ≈ %5,15).
+- Perp BTCUSDT: kontrat 0,01 BTC, asgari emir 0,0001 BTC; funding son günlerde 8 saatte
+  ~%0,006–0,010, ekim içinde negatif değerler de var (yalnız bilgi; perp funding ayrı model).
+
+**Sınırlar:**
+- Fiyatlar **son işlem fiyatı**dır; işlem yapılabilir alış/satış değildir. Tek anlık gözlemdir.
+- %0,20 spot komisyonu düşülünce ≈ %0,139 kalır; vadeli ücretleri ve diğer maliyetler
+  bilinmediğinden **net getirinin işareti dahi belirlenmedi** (negatif olabilir).
+- `USD UM` ürünü OKX'te USD/USDC/USDG uzlaşmalıdır; §2'deki ters (COIN-M) eşleme
+  (q = D/F₀) bu ürüne doğrudan taşınamaz. Spotun USDT kotasyonuyla karşılaştırmada para
+  birimi dönüşümü de hesaba katılmalıdır.
+- 100 $ sermaye 100 $ spot pozisyon demek değildir; teminat ve tampon hesaplanmadı.
+- Burak için önceden tanımlanmış bir "zaman ve riske değer" eşiği (asgari net USD, bağlanan
+  sermaye, süre) yoktur; bu nedenle §6 senaryo 2 ve 3 **doğrulanmadı.**
+
+**Karar (kullanıcı tercihiyle sonlandırma, ekonomik eleme testi DEĞİL):** Tek anlık son fiyat
+gözlemi düşük bir brüt prim gösteriyor. Gerçekleştirilebilir net getiri ve sermaye ihtiyacı
+doğrulanmadı. Burak, bu ölçeği araştırmaya daha fazla zaman ayırmaya değer bulmadığından
+değerlendirmeyi sonlandırdı. **Adayın genel olarak ekonomik açıdan uygulanamaz olduğu
+kanıtlanmış değildir.** Beş günlük alış/satış toplama yapılmayacak. Kod, yeni altyapı veya canlı
+işlem başlatılmayacak. Karar notu §3.3 gereği otomatik olarak başka bir stratejiye geçilmez.
+
+**Not (bilgi):** OKX uygulamasındaki bot tanıtımlarında görülen "APR" ve "kazandı" rakamları
+seçilmiş geçmiş sonuçlardır; bu projede kanıt olarak kullanılmaz.
+
 ## Kaynaklar
+- OKX — USD-margined futures SSS: https://www.okx.com/en-gb/help/faq-on-usd-margined-futures-contracts
 - Binance — ters (COIN-M) sözleşme PnL formülü: https://www.binance.com/en/support/faq/detail/360036498511
 - Binance — teslimat/uzlaşma: https://www.binance.com/en/support/faq/detail/a3401595e1734084959c61491bc0dbe3
 - Binance — A Quick Guide to Coin-Margined Quarterly Contracts:
