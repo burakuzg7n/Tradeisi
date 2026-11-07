@@ -369,13 +369,16 @@ def test_fingerprint_covers_devir_notu_section9_only(tmp_path):
     p = root / "DEVIR_NOTU.md"
     text = p.read_text(encoding="utf-8")
     assert "## 9." in text and "## 10." in text
+    # newline="" şart: Path.write_text varsayılan olarak (Windows'ta) "\n" → "\r\n"
+    # çevirisi yapar. Satır sonları AÇIKÇA yazılıyorsa çeviri olmaz; aksi hâlde
+    # CRLF metni "\r\r\n" olur ve parmak izi (tek seferlik replace) değişir.
     p.write_text(text.replace("## 10.", "ilerleme notu eklendi\n\n## 10.", 1)
-                 .replace("\n", "\r\n"), encoding="utf-8")
+                 .replace("\n", "\r\n"), encoding="utf-8", newline="")
     # §9'un hemen sonuna (## 10'dan önce) eklenen satır §9'a dahildir → değişmeli
     assert pb.code_fingerprint(root) != base
-    p.write_text(text + "\n## 99. yeni ilerleme notu\nx\n", encoding="utf-8")
+    p.write_text(text + "\n## 99. yeni ilerleme notu\nx\n", encoding="utf-8", newline="")
     assert pb.code_fingerprint(root) == base               # §9 dışı değişiklik
-    p.write_text(text.replace("\n", "\r\n"), encoding="utf-8")
+    p.write_text(text.replace("\n", "\r\n"), encoding="utf-8", newline="")
     assert pb.code_fingerprint(root) == base               # yalnız satır sonu farkı
     assert text.count("son 55") == 1                      # yalnız §9'daki giriş kanalı
     p.write_text(text.replace("son 55", "son 50"), encoding="utf-8")
