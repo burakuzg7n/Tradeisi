@@ -51,7 +51,10 @@ def test_get_funding_uses_cache_without_network(tmp_path, monkeypatch):
     monkeypatch.setattr(market, "download_binance_funding", _boom)
     # istenen aralik cache'in icinde -> agara gerek yok
     out = market.get_funding("binance", "BTCUSDT", "2023-01-01", "2023-04-01")
-    assert len(out) == 300
+    # 2023-01-01 00:00 -> 2023-04-01 00:00 araligi (8 saatte bir, 271 kayit)
+    assert len(out) == 271
+    assert out.index[0] == pd.Timestamp("2023-01-01", tz="UTC")
+    assert out.index[-1] == pd.Timestamp("2023-04-01", tz="UTC")
 
 
 def test_get_funding_bybit_returns_empty():
@@ -115,6 +118,51 @@ def test_get_ohlcv_merges_new_rows_into_cache(tmp_path, monkeypatch):
     out = market.get_ohlcv("binance", "BTCUSDT", "1d", "2023-01-01", "2023-01-20")
     assert len(out) == 15
     assert market.load_csv(path).index[-1] == pd.Timestamp("2023-01-15", tz="UTC")
+
+
+def test_get_ohlcv_returns_only_requested_range(tmp_path, monkeypatch):
+    """REGRESYON: onbellek daha genis bir donemi kapsiyorsa donen veri
+    istenen [start, end] ile KIRPILIR.
+
+    Kirpma yapilmazsa in-sample backtest hold-out verisini de gorur
+    (protokol ihlali: "Hold-out verisine in-sample karari verilmeden bakilmaz").
+    """
+    monkeypatch.setattr(market, "DATA_DIR", tmp_path)
+    path = market.cache_path("binance", "BTCUSDT", "1d")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # cache: 2023-01-01 -> 2023-01-30
+    market.save_csv(_ohlcv_frame(30), path)
+
+    def _boom(*args, **kwargs):  # pragma: no cover - agara dusmemeli
+        raise AssertionError("cache varken agara cagrilmamali")
+
+    monkeypatch.setattr(market, "download_binance_ohlcv", _boom)
+    out = market.get_ohlcv("binance", "BTCUSDT", "1d", "2023-01-01", "2023-01-10")
+    assert len(out) == 10
+    assert out.index[0] == pd.Timestamp("2023-01-01", tz="UTC")
+    assert out.index[-1] == pd.Timestamp("2023-01-10", tz="UTC")
+    # cache dosyasi KIRPILMAZ (tum veri korunur)
+    assert len(market.load_csv(path)) == 30
+
+
+def test_get_funding_returns_only_requested_range(tmp_path, monkeypatch):
+    monkeypatch.setattr(market, "DATA_DIR", tmp_path)
+    path = market.cache_path("binance", "BTCUSDT", "8h", kind="funding")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(
+        {"funding_rate": [0.0001] * 300},
+        index=pd.date_range("2023-01-01", periods=300, freq="8h", tz="UTC"),
+    )
+    market.save_funding_csv(df, path)
+
+    def _boom(*args, **kwargs):  # pragma: no cover - agara dusmemeli
+        raise AssertionError("cache varken agara cagrilmamali")
+
+    monkeypatch.setattr(market, "download_binance_funding", _boom)
+    out = market.get_funding("binance", "BTCUSDT", "2023-01-01", "2023-01-08")
+    assert out.index[0] == pd.Timestamp("2023-01-01", tz="UTC")
+    assert out.index[-1] == pd.Timestamp("2023-01-08", tz="UTC")
+    assert len(out) == 22   # 01-01 00:00 -> 01-08 00:00, 8 saatte bir
 
 
 # ---------------------------------------------------------------- indirme

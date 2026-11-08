@@ -308,6 +308,151 @@ def test_kill_switch_reduces_risk_instead_of_freezing_portfolio():
     assert any("kill switch" in r for r in rejects)
 
 
+# ---------------------------------------------------------------- rebalance (pozisyon limiti)
+
+def test_partial_close_scales_r_multiple():
+    """Kismi kapamada R carpani kapanan MIKTARLA orantili risk payina
+    gore hesaplanir (tam pozisyon riski kullanilirsa R yanlis olur)."""
+    from trader.strategy import Signal
+
+    class Half(OneShot):
+        name = "half"
+        research_candidate = False
+        timeframe = "15m"
+
+        def generate(self, panel, ts):
+            sym = list(panel.symbols())[0]
+            n = len(panel.frame(sym)) - 1
+            if n == 0:
+                w = 1.0
+            elif n == 2:
+                w = 0.5
+            else:
+                return []
+            return [Signal(symbol=sym, side="long", action="target_weight",
+                           weight=w, ts=ts.isoformat(), meta={})]
+
+    df = make_ohlcv([
+        (100, 100, 100, 100, 1),
+        (100, 100, 100, 100, 1),   # giris @100, 10 adet
+        (110, 110, 110, 110, 1),   # fiyat 110
+        (110, 110, 110, 110, 1),   # kismi kapanis @110 (5 adet)
+        (110, 110, 110, 110, 1),
+    ])
+    result = bt(initial_equity=1000.0).run({"A": df}, Half(index=0))
+    # 1) kismi kapanis (5 adet)  2) donem sonu kalan 5 adet
+    assert len(result.trades) == 2
+    t = result.trades[0]
+    # 5 adet, giris 100, cikis 110 -> brut +50
+    assert t.qty == pytest.approx(5.0)
+    assert t.pnl_usd == pytest.approx(50.0)
+    assert t.exit_reason == "rebalance"
+    # risk payi: 10 adet * 100 * %0.5 = 5 -> kapanan 5 adet icin 2.5
+    assert t.pnl_r == pytest.approx(50.0 / 2.5)
+
+
+def test_rebalance_works_when_position_limit_is_already_full():
+    """REGRESYON: pozisyon limiti doluyken mevcut pozisyonlarin DUZELTME
+    emirleri reddediliyordu; portföy donuyordu.
+
+    max_positions=1, tek sembol A: agirlik 0.5 -> 1.0 buyutme (bar 2) ve
+    1.0 -> 0 kapatma (bar 4) emirleri gecmeli.
+    Eski hata: max_new = max_positions - len(positions) = 0 -> tum emirler reddedilir.
+    """
+    from trader.strategy import Signal
+
+    class OneLeg(OneShot):
+        name = "one_leg"
+        research_candidate = False
+        timeframe = "15m"
+
+        def generate(self, panel, ts):
+            sym = list(panel.symbols())[0]
+            n = len(panel.frame(sym)) - 1
+            if n == 0:
+                w = 0.5
+            elif n == 2:
+                w = 1.0
+            elif n == 4:
+                w = 0.0
+            else:
+                return []
+            return [Signal(symbol=sym, side="long", action="target_weight",
+                           weight=w, ts=ts.isoformat(), meta={})]
+
+    df = flat_ohlcv(8, price=100.0)
+    risk = RiskSettings(max_gross_leverage=10.0, max_positions=1,
+                         max_drawdown_pct=0.99)
+    result = bt(initial_equity=1000.0, risk=risk).run({"A": df}, OneLeg(index=0))
+    rejects = [r.get("reject_reason", "") for r in result.rejected_signals]
+    assert "pozisyon limiti" not in rejects
+    # agirlik 0.5 -> 5 adet; bar 2'de buyutme -> 10 adet (ortalama giris);
+    # bar 4'te kapatma -> 10 adet tek islem olarak kapanir
+    assert len(result.trades) == 1
+    assert result.trades[0].qty == pytest.approx(10.0)
+    assert result.trades[0].exit_reason == "rebalance"
+
+
+def test_position_limit_rejects_new_openings_beyond_cap():
+    """Limit doluyken fazladan acilis reddedilir (mevcut duzeltmeler degil)."""
+    from trader.strategy import Signal
+
+    class ThreeLeg(OneShot):
+        name = "three_leg"
+        research_candidate = False
+        timeframe = "15m"
+
+        def generate(self, panel, ts):
+            syms = sorted(panel.symbols())
+            n = len(panel.frame(syms[0])) - 1
+            if n == 0:
+                return [Signal(symbol=syms[0], side="long", action="target_weight",
+                               weight=0.5, ts=ts.isoformat(), meta={})]
+            if n == 2:
+                return [Signal(symbol=s, side="long", action="target_weight",
+                               weight=0.5, ts=ts.isoformat(), meta={})
+                        for s in syms]
+            return []
+
+    df = flat_ohlcv(6, price=100.0)
+    risk = RiskSettings(max_gross_leverage=10.0, max_positions=1,
+                         max_drawdown_pct=0.99)
+    result = bt(initial_equity=1000.0, risk=risk).run(
+        {"A": df, "B": df, "C": df}, ThreeLeg(index=0))
+    rejects = [r.get("reject_reason", "") for r in result.rejected_signals]
+    assert rejects.count("pozisyon limiti") == 2   # B ve C reddedildi
+
+
+def test_gross_leverage_cap_applies_to_resulting_exposure():
+    """Brüt kaldıraç tavani |delta| toplamına değil, rebalance SONRASI
+    oluşacak brüt pozisyona uygulanır."""
+    from trader.strategy import Signal
+
+    class ThreeLeg(OneShot):
+        name = "three_leg"
+        research_candidate = False
+        timeframe = "15m"
+
+        def generate(self, panel, ts):
+            syms = sorted(panel.symbols())
+            n = len(panel.frame(syms[0])) - 1
+            if n == 0:
+                return [Signal(symbol=s, side="long", action="target_weight",
+                               weight=1.0, ts=ts.isoformat(), meta={})
+                        for s in syms]
+            return []
+
+    df = flat_ohlcv(6, price=100.0)
+    # 3 sembol x weight 1.0 = 3x equity brüt; cap 2.0 -> olceklenmeli
+    risk = RiskSettings(max_gross_leverage=2.0, max_positions=10,
+                         max_drawdown_pct=0.99)
+    result = bt(initial_equity=1000.0, risk=risk).run(
+        {"A": df, "B": df, "C": df}, ThreeLeg(index=0))
+    gross = sum(t.qty * t.entry for t in result.trades)
+    assert gross <= 2.0 * 1000.0 + 1e-6
+    assert gross > 1.9 * 1000.0
+
+
 # ---------------------------------------------------------------- hedef agirlik
 
 def test_target_weight_rebalance_creates_delta_orders():

@@ -452,6 +452,7 @@ class Backtester:
                 existing.entry_price = (
                     existing.entry_price * existing.qty + fill * o.qty
                 ) / total_qty
+                existing.risk_amount *= total_qty / existing.qty
                 existing.qty = total_qty
                 existing.entry_fee += fee
                 existing.stop = o.stop if o.stop is not None else existing.stop
@@ -466,24 +467,36 @@ class Backtester:
                     existing, exit_price, ts, "rebalance", cash, result,
                     qty=close_qty,
                 )
-            if o.qty > close_qty:
-                rem = o.qty - close_qty
-                new_pos = Position(
-                    symbol=o.symbol,
-                    side="long" if o.side == "buy" else "short",
-                    qty=rem,
-                    entry_price=fill,
-                    stop=o.stop,
-                    target=o.target,
-                    opened_ts=ts,
-                    risk_amount=abs(fill - o.stop) * rem if o.stop else
-                    fill * rem * self.risk.risk_per_trade,
-                    entry_fee=fee * (rem / o.qty) if o.qty else fee,
-                    strategy=o.strategy,
-                    meta=dict(o.meta),
-                )
-                positions[o.symbol] = new_pos
-                cash = self._maybe_gap_stopout(new_pos, ts, cash, positions, result)
+            if o.qty >= existing.qty - 1e-12:
+                # TAM KAPAMA: pozisyon kayitlardan SILINMELI ( aksi halde
+                # ayni pozisyon donem sonunda ikinci kez kapanir).
+                positions.pop(o.symbol, None)
+                rem = o.qty - existing.qty
+                if rem > 1e-12:
+                    new_pos = Position(
+                        symbol=o.symbol,
+                        side="long" if o.side == "buy" else "short",
+                        qty=rem,
+                        entry_price=fill,
+                        stop=o.stop,
+                        target=o.target,
+                        opened_ts=ts,
+                        risk_amount=abs(fill - o.stop) * rem if o.stop else
+                        fill * rem * self.risk.risk_per_trade,
+                        entry_fee=fee * (rem / o.qty) if o.qty else fee,
+                        strategy=o.strategy,
+                        meta=dict(o.meta),
+                    )
+                    positions[o.symbol] = new_pos
+                    cash = self._maybe_gap_stopout(new_pos, ts, cash, positions, result)
+            else:
+                # KISMI KAPAMA: kalan miktar korunur (pozisyon miktarı,
+                # giris ücreti, funding ve risk payı orantili azalir).
+                ratio = (existing.qty - close_qty) / existing.qty
+                existing.qty -= close_qty
+                existing.entry_fee *= ratio
+                existing.funding_paid *= ratio
+                existing.risk_amount *= ratio
             return cash, positions, False
 
         pos = Position(
@@ -565,8 +578,12 @@ class Backtester:
         fee_rate = self.costs.maker_fee if reason == "target" else self.costs.taker_fee
         exit_fee = exit_price * q * fee_rate
         gross = (exit_price - pos.entry_price) * q * pos.sign
-        entry_fee_share = pos.entry_fee * (q / pos.qty) if pos.qty else 0.0
-        funding_share = pos.funding_paid * (q / pos.qty) if pos.qty else 0.0
+        share = (q / pos.qty) if pos.qty else 0.0
+        entry_fee_share = pos.entry_fee * share
+        funding_share = pos.funding_paid * share
+        # R payi: kapanan MIKTARLA orantili risk payi (kismi kapamada tam
+        # pozisyon riski kullanilirsa R carpani yanlis olur).
+        risk_share = pos.risk_amount * share if pos.qty else pos.risk_amount
         pnl = gross - entry_fee_share - exit_fee + funding_share
         cash += gross - exit_fee + funding_share
         result.fees_paid += exit_fee
@@ -580,7 +597,7 @@ class Backtester:
             stop=pos.stop,
             target=pos.target,
             pnl_usd=pnl,
-            pnl_r=(pnl / pos.risk_amount) if pos.risk_amount else 0.0,
+            pnl_r=(pnl / risk_share) if risk_share else 0.0,
             fees=entry_fee_share + exit_fee,
             funding=funding_share,
             entry_ts=pos.opened_ts,
@@ -610,7 +627,16 @@ class Backtester:
         other_signals = [s for s in signals if s.action != "target_weight"]
 
         # --- hedef agirlik -> fark emirleri
-        requested: list[tuple[Signal, float]] = []  # (sinyal, hedef NOTIONAL)
+        #  Asagidaki blokta iki kural vardir:
+        #   a) Kalan pozisyon sayisi tavani: rebalance SONRASI acik olacak
+        #      sembol sayisi hesaplanir. (Eski hata: max_new = max_positions -
+        #      len(positions) degeri 0 ciktiginda, mevcut pozisyonlarin
+        #      DUZELTME emirleri de reddediliyordu; portföy donuyordu.)
+        #   b) Brüt kaldirac tavani: |delta| toplami degil, rebalance SONRASI
+        #      OLUSACAK brüt pozisyon olceklenir.
+        specs: list[tuple[Signal, float, float]] = []  # (sinyal, hedef, mevcut)
+        targets: dict[str, float] = {}
+        weight_rejected: set[str] = set()
         for s in weight_signals:
             w = float(s.weight or 0.0)
             target_notional = w * equity
@@ -621,6 +647,7 @@ class Backtester:
                 # hedef agirlik equity'nin ANLIK degerine gore tanimlidir.
                 mark = prices.get(s.symbol, 0.0) or pos.entry_price
                 current_notional = pos.sign * pos.qty * mark
+            targets[s.symbol] = target_notional
             delta = target_notional - current_notional
             if abs(delta) < self.min_trade_notional:
                 continue
@@ -630,30 +657,56 @@ class Backtester:
                 #  dondurup hem riski hem de olcumü anlamsizlastiriyordu.)
                 rejected.append({**s.to_dict(),
                                  "reject_reason": "kill switch: risk arttirilamaz"})
+                weight_rejected.add(s.symbol)
                 continue
-            requested.append((s, delta))
+            specs.append((s, target_notional, current_notional))
 
-        # --- toplam brüt kaldirac tavani
-        projected_gross = 0.0
-        for s, delta in requested:
-            projected_gross += abs(delta)
+        # --- toplam brüt kaldirac tavani (rebalance sonucu brüt pozisyon)
+        result_gross = 0.0
+        for sym in set(positions.keys()) | set(targets.keys()):
+            if sym in targets:
+                result_gross += abs(targets[sym])
+            else:
+                pos = positions[sym]
+                mark = prices.get(sym, 0.0) or pos.entry_price
+                result_gross += abs(pos.sign * pos.qty * mark)
         cap = self.risk.max_gross_leverage * equity
-        if projected_gross > cap > 0:
-            scale = cap / projected_gross
-            requested = [(s, d * scale) for s, d in requested]
+        if cap > 0 and result_gross > cap:
+            scale = cap / result_gross
+            targets = {k: v * scale for k, v in targets.items()}
+            specs = [(s, t * scale, c) for s, t, c in specs]
 
-        # --- pozisyon sayisi tavani
-        new_symbols = {s.symbol for s, _ in requested} - set(positions.keys())
-        max_new = max(0, self.risk.max_positions - len(positions))
-        if len(new_symbols) > max_new:
-            ranked = sorted(requested, key=lambda x: abs(x[1]), reverse=True)
-            keep = {s.symbol for s, _ in ranked[:max_new]}
-            for s, d in requested:
-                if s.symbol not in keep:
+        # --- kalan pozisyon sayisi tavani (rebalance sonrasi acik olacaklar)
+        open_now = set(positions.keys())
+        closes = {s.symbol for s, t, c in specs
+                  if abs(t) <= 1e-12 and abs(c) > 1e-12}
+        new_open = {s.symbol for s, t, c in specs
+                    if abs(c) <= 1e-12 and abs(t) > 1e-12}
+        projected_open = len(open_now - closes) + len(new_open)
+        if projected_open > self.risk.max_positions:
+            overflow = projected_open - self.risk.max_positions
+            # en kucuk hedef notionaline sahip yeni acilisleri reddet
+            candidates = sorted(
+                [x for x in specs if x[0].symbol in new_open],
+                key=lambda x: abs(x[1]))
+            drop: set[str] = set()
+            for s, t, c in candidates:
+                if overflow <= 0:
+                    break
+                drop.add(s.symbol)
+                overflow -= 1
+            for s, t, c in specs:
+                if s.symbol in drop:
                     rejected.append({**s.to_dict(), "reject_reason": "pozisyon limiti"})
+                    weight_rejected.add(s.symbol)
+            specs = [x for x in specs if x[0].symbol not in drop]
+
+        requested: list[tuple[Signal, float]] = []
+        for s, t, c in specs:
+            requested.append((s, t - c))
 
         for s, delta in requested:
-            if any(r["symbol"] == s.symbol and "reject_reason" in r for r in rejected):
+            if s.symbol in weight_rejected:
                 continue
             side = "buy" if delta > 0 else "sell"
             price = prices.get(s.symbol, 0.0)

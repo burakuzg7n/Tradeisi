@@ -298,6 +298,13 @@ def load_funding_csv(path: Path) -> pd.DataFrame:
     return df
 
 
+def _slice_range(df: pd.DataFrame, start_ts, end_ts) -> pd.DataFrame:
+    """Frame'i istenen [start, end] araligina kirpar."""
+    if df is None or len(df) == 0:
+        return df
+    return df.loc[(df.index >= start_ts) & (df.index <= end_ts)]
+
+
 def get_ohlcv(
     exchange: str,
     symbol: str,
@@ -308,6 +315,10 @@ def get_ohlcv(
     pause: float = 0.25,
 ) -> pd.DataFrame:
     """OHLCV getirir; onbellekte varsa tekrar indirmez (refresh=True ile zorlar).
+
+    DÖNEN DEĞER YALNIZCA [start, end] ARALIĞINI İÇERİR. Onbellek dosyasi
+    daha genis bir donemi kapsiyor olabilir; kirpma yapilmazsa in-sample
+    backtest hold-out verisini de gorur (protokol ihlali).
 
     Sembol delist oldugunda API bos doner. Bu durumda onbellekteki veri
     SILINMEZ; eksik kismi indirilemiyorsa onbellek aynen dondurulur.
@@ -328,11 +339,11 @@ def get_ohlcv(
     if cached is not None and len(cached) and not refresh:
         if cached.index[0] <= start_ts and \
                 cached.index[-1] >= end_ts - pd.Timedelta(days=2):
-            return cached
+            return _slice_range(cached, start_ts, end_ts)
         # kismi veri: mevcut olani koru, eksik kismi indir
         start_ms = int(cached.index[-1].timestamp() * 1000) + 1
         if start_ms >= end_ms:
-            return cached
+            return _slice_range(cached, start_ts, end_ts)
 
     if exchange == "binance":
         fresh = download_binance_ohlcv(symbol, interval, start_ms, end_ms, pause)
@@ -344,19 +355,22 @@ def get_ohlcv(
     if len(fresh) == 0:
         # API bos dondu (delist / gecici hata): onbellekteki veriyi KORU
         if cached is not None and len(cached):
-            return cached
+            return _slice_range(cached, start_ts, end_ts)
         return fresh
 
     if cached is not None and len(cached):
         fresh = pd.concat([cached, fresh])
         fresh = fresh[~fresh.index.duplicated(keep="last")].sort_index()
     save_csv(fresh, path)
-    return fresh
+    return _slice_range(fresh, start_ts, end_ts)
 
 
 def get_funding(exchange: str, symbol: str, start: str, end: str,
                 refresh: bool = False) -> pd.DataFrame:
-    """Funding oranlari (perpetual). Binance uzerinden; Bybit icin Bos gecer."""
+    """Funding oranlari (perpetual). Binance uzerinden; Bybit icin Bos gecer.
+
+    Dönen değer YALNIZCA [start, end] aralığını içerir (bkz. get_ohlcv).
+    """
     path = cache_path(exchange, symbol, "8h", kind="funding")
     start_ts = pd.Timestamp(start, tz="UTC")
     end_ts = pd.Timestamp(end, tz="UTC")
@@ -365,9 +379,9 @@ def get_funding(exchange: str, symbol: str, start: str, end: str,
     if len(cached) and not refresh:
         # onbellek istenen araligi kapsiyorsa tekrar indirme
         if cached.index[0] <= start_ts and cached.index[-1] >= end_ts - pd.Timedelta(days=2):
-            return cached
+            return _slice_range(cached, start_ts, end_ts)
         if cached.index[-1] >= end_ts:
-            return cached
+            return _slice_range(cached, start_ts, end_ts)
 
     if exchange != "binance":
         return pd.DataFrame(columns=["funding_rate"], index=pd.DatetimeIndex([], tz="UTC"))
@@ -380,7 +394,7 @@ def get_funding(exchange: str, symbol: str, start: str, end: str,
         fresh = fresh[~fresh.index.duplicated(keep="last")].sort_index()
     if len(fresh):
         save_funding_csv(fresh, path)
-    return fresh
+    return _slice_range(fresh, start_ts, end_ts)
 
 
 # --------------------------------------------------------------------------
