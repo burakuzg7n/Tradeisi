@@ -22,6 +22,16 @@ def flat_df():
     return make_df([(100, 101, 99, 100)] * 60)
 
 
+@pytest.fixture
+def tmp_store(tmp_path):
+    """Yeni motor (`trader/`) icin gecici SQLite kaydi."""
+    from trader.store import Store
+
+    store = Store(str(tmp_path / "trader_test.db"))
+    yield store
+    store.close()
+
+
 def synthetic_trend_df(n=2000, seed=7, freq="15min") -> pd.DataFrame:
     """Rejim değiştiren sentetik seri — motor doğrulaması için."""
     rng = np.random.default_rng(seed)

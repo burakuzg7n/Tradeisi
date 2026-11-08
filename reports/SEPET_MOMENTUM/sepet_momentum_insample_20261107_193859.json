@@ -1,0 +1,76 @@
+{
+  "strategy": "sepet_momentum",
+  "generated_at": "2026-11-07T19:38:59.103469+00:00",
+  "meta": {
+    "start": "2021-01-01",
+    "end": "2024-12-31",
+    "exchange": "binance",
+    "timeframe": "1d",
+    "universe": "ADAUSDT,APTUSDT,ARBUSDT,ATOMUSDT,AVAXUSDT,BCHUSDT,BNBUSDT,BTCUSDT,DOGEUSDT,DOTUSDT,ETCUSDT,ETHUSDT,FILUSDT,INJUSDT,LINKUSDT,LTCUSDT,NEARUSDT,OPUSDT,POLUSDT,SOLUSDT,SUIUSDT,TIAUSDT,TRXUSDT,WIFUSDT,XRPUSDT",
+    "initial_equity": 10000.0,
+    "maker_fee": 0.0002,
+    "taker_fee": 0.00055,
+    "slippage": 0.0003,
+    "periods_per_year": 365,
+    "stage": "insample",
+    "kill_switch": false,
+    "universe_size": 25
+  },
+  "summary": {
+    "total_trades": 6,
+    "win_rate": 0.5,
+    "profit_factor": 0.4496467636012302,
+    "expectancy_r": -76.47202142308628,
+    "expectancy_usd": -1326.490971398216,
+    "total_pnl_usd": -7958.945828389296,
+    "avg_win_r": 139.36784401010982,
+    "avg_loss_r": -292.3118868562824,
+    "max_drawdown": 0.9793422738289239,
+    "sharpe": 0.2278035895405797,
+    "sortino": 0.34223779199896964,
+    "calmar": -0.24199138764250955,
+    "hac_t": 1.3085863783616614e-16,
+    "expectancy_ci": {
+      "lo": -252.36267151281845,
+      "hi": 105.2592010690286,
+      "point": -76.47202142308628
+    },
+    "pf_ci": {
+      "lo": 0.00762205552892554,
+      "hi": 6.882597060000844,
+      "point": 0.4496467636012302
+    },
+    "effective_sample": {
+      "raw": 6,
+      "effective": 0,
+      "dependence_ratio": 1.0
+    }
+  },
+  "yearly": [
+    {
+      "year": 2026,
+      "trades": 6,
+      "win_rate": 0.5,
+      "profit_factor": 0.4496467636012302,
+      "pnl_usd": -7958.945828389296,
+      "pnl_r": -76.47202142308628
+    }
+  ],
+  "kill_switch": {
+    "triggered": false,
+    "reason": ""
+  },
+  "costs": {
+    "fees_paid": 18.2474,
+    "funding_paid": -3200.1652
+  },
+  "accepted_signals": 6,
+  "rejected_signals": 2968,
+  "initial_equity": 10000.0,
+  "final_equity": 2052.2518195776447,
+  "equity": {
+    "start": "2021-01-01 00:00:00+00:00",
+    "end": "2026-11-07 00:00:00+00:00",
+    "points": 2137
+  }
+}

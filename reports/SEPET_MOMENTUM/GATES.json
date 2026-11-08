@@ -1,0 +1,34 @@
+{
+  "sepet_momentum": {
+    "history": [
+      {
+        "passed": false,
+        "metrics": {
+          "profit_factor": 0.4496467636012302,
+          "trades": 6,
+          "max_drawdown": 0.9793422738289239,
+          "report": "C:\\Users\\burak\\OneDrive\\Desktop\\opencode\\Tradeisi\\out\\reports\\sepet_momentum_insample_20261107_193859.json"
+        },
+        "note": "insample tek atis",
+        "recorded_at": "2026-11-07T19:38:59.116468+00:00",
+        "stage": "backtest",
+        "voided_at": "2026-11-08T13:27:30.504581+00:00",
+        "void_reason": "Koşu 1 motor hatalari nedeniyle gecersiz (bkz. docs/KOSU_GECMISI_SEPET_MOMENTUM.md)"
+      }
+    ],
+    "backtest": {
+      "passed": false,
+      "metrics": {
+        "profit_factor": 1.1404915344830064,
+        "trades": 823,
+        "max_drawdown": 0.552004246692208,
+        "win_rate": 0.5018226002430134,
+        "expectancy_r": 8.941028305691681,
+        "final_equity": 35203.905674802074,
+        "report": "C:\\Users\\burak\\OneDrive\\Desktop\\opencode\\Tradeisi\\out\\reports\\sepet_momentum_insample_20261108_132730.json"
+      },
+      "note": "insample gecerli tek atis (kosu 4) - motor determinizm duzeltmesinden sonra",
+      "recorded_at": "2026-11-08T13:36:46.640172+00:00"
+    }
+  }
+}
