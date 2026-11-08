@@ -1,0 +1,101 @@
+{
+  "strategy": "sepet_momentum",
+  "generated_at": "2026-11-08T11:27:09.262761+00:00",
+  "meta": {
+    "start": "2021-01-01",
+    "end": "2024-12-31",
+    "exchange": "binance",
+    "timeframe": "1d",
+    "universe": "ADAUSDT,APTUSDT,ARBUSDT,ATOMUSDT,AVAXUSDT,BCHUSDT,BNBUSDT,BTCUSDT,DOGEUSDT,DOTUSDT,ETCUSDT,ETHUSDT,FILUSDT,INJUSDT,LINKUSDT,LTCUSDT,NEARUSDT,OPUSDT,POLUSDT,SOLUSDT,SUIUSDT,TIAUSDT,TRXUSDT,WIFUSDT,XRPUSDT",
+    "initial_equity": 10000.0,
+    "maker_fee": 0.0002,
+    "taker_fee": 0.00055,
+    "slippage": 0.0003,
+    "periods_per_year": 365,
+    "stage": "none",
+    "kill_switch": false,
+    "universe_size": 25
+  },
+  "summary": {
+    "total_trades": 812,
+    "win_rate": 0.4975369458128079,
+    "profit_factor": 1.1259042032407363,
+    "expectancy_r": 8.873484825189818,
+    "expectancy_usd": 28.853220728125063,
+    "total_pnl_usd": 23428.81523123755,
+    "avg_win_r": 41.42086261133533,
+    "avg_loss_r": -23.354801021875833,
+    "max_drawdown": 0.5932844479952233,
+    "sharpe": 0.7687152500983488,
+    "sortino": 1.226678753807013,
+    "calmar": 0.559140104478354,
+    "hac_t": 4.095286764101275,
+    "expectancy_ci": {
+      "lo": 5.348658971149815,
+      "hi": 12.497126305510884,
+      "point": 8.809420659819786
+    },
+    "pf_ci": {
+      "lo": 0.8953232411841298,
+      "hi": 1.4226656326545,
+      "point": 1.1294519218907486
+    },
+    "effective_sample": {
+      "raw": 812,
+      "effective": 578,
+      "dependence_ratio": 0.2884,
+      "autocorr_lag1": 0.0212
+    }
+  },
+  "yearly": [
+    {
+      "year": 2021,
+      "trades": 182,
+      "win_rate": 0.489010989010989,
+      "profit_factor": 1.1042148164922976,
+      "pnl_usd": 6052.589929237953,
+      "pnl_r": 11.138105704514842
+    },
+    {
+      "year": 2022,
+      "trades": 200,
+      "win_rate": 0.54,
+      "profit_factor": 1.0361134849374691,
+      "pnl_usd": 1819.8981285965788,
+      "pnl_r": 4.434161019822092
+    },
+    {
+      "year": 2023,
+      "trades": 209,
+      "win_rate": 0.4688995215311005,
+      "profit_factor": 1.0710585824468668,
+      "pnl_usd": 2161.5590463072003,
+      "pnl_r": 9.461333367329525
+    },
+    {
+      "year": 2024,
+      "trades": 221,
+      "win_rate": 0.49321266968325794,
+      "profit_factor": 1.2838284805766589,
+      "pnl_usd": 13394.76812709582,
+      "pnl_r": 10.470061366950869
+    }
+  ],
+  "kill_switch": {
+    "triggered": false,
+    "reason": ""
+  },
+  "costs": {
+    "fees_paid": 4866.7269,
+    "funding_paid": -458.2904
+  },
+  "accepted_signals": 1564,
+  "rejected_signals": 39,
+  "initial_equity": 10000.0,
+  "final_equity": 31477.806494833985,
+  "equity": {
+    "start": "2021-01-01 00:00:00+00:00",
+    "end": "2024-12-31 00:00:00+00:00",
+    "points": 1461
+  }
+}

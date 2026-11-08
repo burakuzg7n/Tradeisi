@@ -1,10 +1,10 @@
 # Aday değerlendirme — Sepet momentum (çapraz kesit momentum)
 
 **Tarih:** 7 Kasım 2026 · **Hazırlayan:** Claude (OpenCode) · **Karar:** Burak
-**Statü:** Kod yazıldı, **tek atış backtest henüz çalıştırılmadı**. Bu not
-kural setini, kapıları ve eleme senaryolarını **veriye bakılmadan** sabitler.
-**Kapsam:** Yalnız bu adayın değerlendirilmesi. V1/V2/Plan B/V3 retleri,
-mühürlü raporları ve hold-out yasakları korunur; `reports/` arşivdir.
+**Statü:** **RED — in-sample tek atış yapıldı (Koşu 4, 8 Kasım 2026).**
+Bu not kural setini, kapıları ve eleme senaryolarını **veriye bakılmadan**
+sabitler. **Kapsam:** Yalnız bu adayın değerlendirilmesi. V1/V2/Plan B/V3
+retleri, mühürlü raporları ve hold-out yasakları korunur; `reports/` arşivdir.
 
 > **Önemli tarih sırası:** Kural seti (`trader/strategies/basket_momentum.py`
 > dosyasındaki "KURALLAR" bölümü) 7 Kasım 2026'da, **hiçbir backtest
@@ -167,9 +167,9 @@ bkz. `docs/ORNEKLEM_PLANI_SEPET_MOMENTUM.md` §3). In-sample RED ise hold-out
 | 4 | Örnekleme planı ve fizibilite | ✅ `docs/ORNEKLEM_PLANI_SEPET_MOMENTUM.md` |
 | 5 | Motorun muhafazakâr varsayımları ve test kapsamı | ✅ `trader/backtest.py` + `tests/test_trader_*.py` (45+ yeni test) |
 | 6 | Yürütme katmanındaki dört yüksek ciddiyetli hatanın kapatılması | ✅ `trader/exchange.py`, `trader/live.py` + regresyon testleri |
-| 7 | In-sample tek atış | ⏳ **bu çalıştırma** |
-| 8 | Hold-out tek atış (yalnız 7 geçerse) | ⏳ |
-| 9 | İleriye dönük paper (2026-11-07'den itibaren) | ⏳ |
+| 7 | In-sample tek atış | ❌ **RED** — Koşu 4 (8 Kas 2026): PF 1,140 · DD %55,20 · 823 işlem |
+| 8 | Hold-out tek atış (yalnız 7 geçerse) | ⛔ **AÇILMADI** — in-sample RED olduğu için hold-out koşusu yapılmadı |
+| 9 | İleriye dönük paper (2026-11-07'den itibaren) | ⛔ **Bu aday için yapılmadı** — paper kapısı açar ama aday zaten RED |
 
 ## 8. Tek atış protokolü uyarısı
 
@@ -178,6 +178,51 @@ olarak raporlanır; bağımsız doğrulama değildir. Aynı dönemde ikinci bir
 kural denemesi yapılmayacaktır. Sonuç RED ise bu aday ailesi kapanır ve
 otomatik olarak yeni bir stratejiye geçilmez (`docs/KARAR_NOTU_C_2026-11-02.md`
 §3 madde 3).
+
+## 9. SONUÇ — 8 Kasım 2026 · **RED**
+
+**Geçerli tek atış:** Koşu 4 (8 Kasım 2026 13:27 UTC)
+**Rapor:** `out/reports/sepet_momentum_insample_20261108_132730.{json,md}`
+**Tam koşu geçmişi:** `docs/KOSU_GECMISI_SEPET_MOMENTUM.md`
+
+| Kapı | Eşik | Gerçek | Sonuç |
+|---|---|---|---|
+| G1 — Profit Factor | > 1,30 | **1,140** | ❌ **KALDI** |
+| G2 — Max Drawdown | < %15 | **%55,20** | ❌ **KALDI** |
+| G3 — İşlem sayısı | ≥ 150 | 823 | ✅ GEÇTİ |
+| G4 — Net sonuç | > 0 | +25.203,91 $ | ✅ GEÇTİ |
+| G5 — Rebalance haftası | ≥ 120 | 209 | ✅ GEÇTİ |
+
+**Karar: RED.** G1 ve G2 tutmadı. **Parametreler ayarlanmadı, "Plan B.1"
+yazılmadı, hold-out açılmadı.** Bu aday ailesi kapanmıştır.
+
+### Değerlendirme
+
+- Strateji **para kazandırıyor** (4 yılda 10.000 → 35.204 $, yıllık
+  ortalama ≈ %37) ve edge'i istatistiksel olarak anlamlı (HAC t = 4,19).
+  Ama:
+- **PF 1,140, gereken 1,30'ın altında.** Kazanç var, yeterli değil.
+- **DD %55,20, tavanın %15'in 3,7 katı.** 2× kaldıraçla bu profili
+  gerçek parayla taşımak kabul edilemez.
+- **Sonuç iyimserdir** (hayatta kalma yanlılığı §3.1) → gerçek performans
+  daha kötü olur.
+
+### Motor hataları ve strateji hakkında dürüstlük
+
+Koşu 1–3 **motor hataları** nedeniyle geçersizdir (tarih kırpma, pozisyon
+limiti, çift kapanma, determinizm). Bunlar strateji hakkında bilgi vermez.
+Ancak dört koşunun da RED çıkması tesadüf değildir: PF 1,137–1,140 ve
+DD %55–56 aralığında sabit kalmıştır. **Hiçbir strateji kuralı, parametresi
+veya kapısı koşulardan sonra değiştirilmedi.**
+
+### Doğru sonraki adım
+
+Bu aday bitti. Yeni bir aday için protokol sırası:
+1. Kural seti + kapı eşiği **veriye bakmadan** yazılır ve commit edilir.
+2. Tek atış in-sample → GEÇTİ'YE hold-out → forward paper (300 işlem) →
+   testnet (100 işlem) → 100–500 $ canlı.
+3. Asıl doğrulama **ileriye dönük paper trade**'tir; hold-out yalnızca
+   zayıf bağımsız bir kontrol.
 
 ## Kaynaklar
 

@@ -46,6 +46,8 @@ HEDEF FIYAT ARASI: 1R = islem basina equity * %0.5 (stop yoksa notional uzerinde
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -181,8 +183,10 @@ class BasketMomentum:
 
     @staticmethod
     def _inverse_vol_weights(symbols: list[str], stats: dict) -> dict[str, float]:
+        # `math.fsum`: toplama sirasi degisse de sonuc degismesin
+        # (float toplamasi siraya baglidir; determinizm icin onemli).
         inv = {s: 1.0 / max(stats[s]["vol"], 1e-9) for s in symbols}
-        total = sum(inv.values())
+        total = math.fsum(inv.values())
         if total <= 0:
             n = len(symbols)
             return {s: 1.0 / n for s in symbols}

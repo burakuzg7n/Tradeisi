@@ -159,7 +159,7 @@ def _load_panel(symbols, exchange, timeframe, start, end, with_funding=True):
 
 def cmd_backtest(args) -> int:
     from .backtest import Backtester
-    from .gates import load_gates, record_gate
+    from .gates import load_gates, record_gate, void_gate
     from .report import build_report, write_report
     from .strategies import build as build_strategy
 
@@ -237,6 +237,12 @@ def cmd_backtest(args) -> int:
         for name, okv in checks.items():
             print(f"  [{'GECTI' if okv else 'KALDI'}] {name}")
         print(f"  SONUC: {'GECTI' if passed else 'KALDI (RED)'}")
+        if existing and getattr(args, "void_prior", False):
+            # Onceki kayit GECERSIZ kosuya aitse: silinmez, gecmise tasinir.
+            void_gate(strategy.name, stage_key,
+                      reason=args.void_reason or "gecersiz kosu (motor hatasi)")
+            print(f"  Onceki kapı kaydi GEÇERSIZ ilan edildi ve gecmise tasindi.")
+            existing = None
         if existing:
             print()
             print("  ⚠ DIKKAT: Bu strateji icin bu asamaya ait ONCEKI bir kapı "
@@ -311,6 +317,11 @@ def cmd_paper(args) -> int:
     except KeyboardInterrupt:
         print("\nDurduruldu.")
     finally:
+        # Borsa oturumunu kapat (aiohttp "unclosed session" uyarisini onler)
+        try:
+            asyncio.run(engine.close())
+        except Exception:
+            pass
         store.close()
     return 0
 
@@ -426,10 +437,24 @@ def cmd_gates(args) -> int:
     for strategy, stages in gates.items():
         print(f"\n  {strategy}")
         for stage, info in stages.items():
+            if stage == "history":
+                # gecersiz kosularin gecmisi — SILINMEZ
+                print(f"    {'GECMIS':10s} ({len(info)} gecersiz kosu kaydi)")
+                for rec in info:
+                    mark = "GECTI" if rec.get("passed") else "KALDI"
+                    print(f"               {rec.get('stage', '?'):8s} {mark:6s} "
+                          f"{rec.get('recorded_at', '')}")
+                    if rec.get("void_reason"):
+                        print(f"                         GEÇERSIZ: {rec['void_reason']}")
+                    if rec.get("report"):
+                        print(f"                         rapor: {rec['report']}")
+                continue
             mark = "GECTI" if info.get("passed") else "KALDI"
             print(f"    {stage:10s} {mark:6s} {info.get('recorded_at', '')}")
             if info.get("note"):
                 print(f"               {info['note']}")
+            if info.get("metrics", {}).get("report"):
+                print(f"               rapor: {info['metrics']['report']}")
     return 0
 
 
@@ -471,6 +496,12 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Risk kill switch'i backtestte de uygula "
                          "(varsayilan KAPALI: DD kapisi stratejinin kendi "
                          "drawdown'unu olcmelidir)")
+    sp.add_argument("--void-prior", action="store_true",
+                    help="Onceki kapı kaydini GECERSIZ (VOID) ilan et ve "
+                         "gecmise tasir. SILINMEZ. Yalnizca onceki kosu "
+                         "motor hatasi nedeniyle gecersizse kullanilir.")
+    sp.add_argument("--void-reason", default="",
+                    help="Gecersiz ilaninin gerekcesi (denetim izi icin)")
     sp.set_defaults(func=cmd_backtest)
 
     sp = sub.add_parser("paper", help="Paper trading (gercek para yok)")

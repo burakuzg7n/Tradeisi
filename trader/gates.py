@@ -54,6 +54,7 @@ def record_gate(strategy: str, stage: str, passed: bool, metrics: dict | None = 
                 note: str = "") -> dict:
     gates = load_gates()
     entry = gates.setdefault(strategy, {})
+    _archive(gates, strategy, stage, reason="onceki kayit degistirildi")
     entry[stage] = {
         "passed": bool(passed),
         "metrics": metrics or {},
@@ -62,6 +63,43 @@ def record_gate(strategy: str, stage: str, passed: bool, metrics: dict | None = 
     }
     save_gates(gates)
     return entry
+
+
+def void_gate(strategy: str, stage: str, reason: str) -> dict | None:
+    """Bir kapı kaydını GEÇERSIZ (VOID) ilan et.
+
+    Protokol: gecersiz kosular SILINMEZ. Bu fonksiyon mevcut kaydi
+    silmek yerine `history` listesine TASIR; boylece denetim izi korunur
+    ve gecerli tek atis kaydedilebilir.
+
+    Gecersiz kosu, strateji hakkında bilgi vermeyen kosudur — "basarili"
+    anlamina gelmez.
+    """
+    gates = load_gates()
+    entry = gates.get(strategy, {})
+    old = entry.get(stage)
+    if not old:
+        return None
+    _archive(gates, strategy, stage, reason=reason, original=old)
+    entry.pop(stage, None)
+    save_gates(gates)
+    return old
+
+
+def _archive(gates: dict, strategy: str, stage: str, reason: str = "",
+             original: dict | None = None) -> None:
+    """Onceki kaydi gecmis kutusuna tasir (silmez)."""
+    entry = gates.setdefault(strategy, {})
+    if original is None:
+        original = entry.get(stage)
+    if not original:
+        return
+    record = dict(original)
+    record["stage"] = stage
+    record["voided_at"] = datetime.now(timezone.utc).isoformat()
+    record["void_reason"] = reason
+    history = entry.setdefault("history", [])
+    history.append(record)
 
 
 def check(strategy, mode: str) -> GateDecision:

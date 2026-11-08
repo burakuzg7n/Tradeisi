@@ -20,6 +20,7 @@ Lookahead:
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -27,6 +28,42 @@ import pandas as pd
 
 from .config import CostModel, RiskSettings
 from .strategy import Panel, Signal
+
+# --------------------------------------------------------------------------
+# Saf (side-effect'siz) yardimcilar — determinizm icin ayri fonksiyonlar
+# --------------------------------------------------------------------------
+
+
+def gross_exposure(positions: dict, targets: dict, prices: dict) -> float:
+    """Rebalance sonrasi olusacak BRUT pozisyon tutari.
+
+    NEDEN AYRI BIR FONKSIYON?
+      Motor iki seyi birden yapmaliydi: (1) sembolleri sabit sirada gezmek
+      ve (2) float toplamini almak. `set` uzerinde gezmek Python'da hash
+      sirasina baglidir (`PYTHONHASHSEED` her surecte degisir) ve float
+      toplami siraya baglidir (1e16 + 1.0 + 1.0 != 1.0 + 1.0 + 1e16).
+      Ikisi birlestiginde sonuc 1 ULP (1e-16) kadar oynuyor, `cap` kontrolu
+      `result_gross > cap` seklinde OLDUGU ICIN kenar durumunda karar
+      donuyor ve portfoy yorumu kausik sekilde ayrisiyor.
+
+      Burada:
+        * semboller `sorted()` ile sabit sirada gezilir,
+        * toplam `math.fsum` ile alinir — fsum tam (dogru yuvarlanmis)
+          toplam verir ve SIRAYA BAGIMLI DEGILDIR.
+
+      Bu sayede brüt pozisyon toplami, sembollerin hangi sirada
+      bulundugundan bagimsiz olarak HER ZAMAN ayni sonucu verir.
+    """
+    parts: list[float] = []
+    for sym in sorted(set(positions) | set(targets)):
+        if sym in targets:
+            parts.append(abs(targets[sym]))
+        else:
+            pos = positions[sym]
+            mark = prices.get(sym, 0.0) or pos.entry_price
+            parts.append(abs(pos.sign * pos.qty * mark))
+    return math.fsum(parts)
+
 
 # --------------------------------------------------------------------------
 
@@ -269,7 +306,9 @@ class Backtester:
                 result.funding_paid += -pos.sign * notional * rate
 
             # ---- 5) equity (mark-to-market)
-            equity = cash + sum(
+            #  `math.fsum`: toplama sirasi degisse de sonuc DEGISMESIN
+            #  (float toplamasi siraya baglidir).
+            equity = cash + math.fsum(
                 self._unrealized(p, self._last_close(data, sym, t))
                 for sym, p in positions.items()
             )
@@ -662,14 +701,10 @@ class Backtester:
             specs.append((s, target_notional, current_notional))
 
         # --- toplam brüt kaldirac tavani (rebalance sonucu brüt pozisyon)
-        result_gross = 0.0
-        for sym in set(positions.keys()) | set(targets.keys()):
-            if sym in targets:
-                result_gross += abs(targets[sym])
-            else:
-                pos = positions[sym]
-                mark = prices.get(sym, 0.0) or pos.entry_price
-                result_gross += abs(pos.sign * pos.qty * mark)
+        #  `gross_exposure` saf ve SIRA BAGIMSIZDIR (sorted + math.fsum):
+        #  set uzerinde gezmek + elle float toplamak ayni veriden farkli
+        #  sonuc uretiyordu (bkz. docs/KOSU_GECMISI_SEPET_MOMENTUM.md).
+        result_gross = gross_exposure(positions, targets, prices)
         cap = self.risk.max_gross_leverage * equity
         if cap > 0 and result_gross > cap:
             scale = cap / result_gross

@@ -76,12 +76,16 @@ def hac_tstat(values: np.ndarray, max_lag: int = 10) -> float:
 
     Islem getirileri zaman serisidir; otokorelasyon varsa naif t-stat
     yanlis guven verir. HAC bunu duzeltir.
+
+    HATA (duzeltildi): ortalama, demeaning ONCESI alinmali. Once de-mean
+    edilip sonra x.mean() kullanilirsa t-statistik daima 0 cikar.
     """
     x = np.asarray(values, dtype=float)
     n = x.size
     if n < 3:
         return 0.0
-    x = x - x.mean()
+    mean = float(x.mean())
+    x = x - mean
     gamma0 = float(np.dot(x, x) / n)
     s = gamma0
     for lag in range(1, min(max_lag, n - 1) + 1):
@@ -93,7 +97,7 @@ def hac_tstat(values: np.ndarray, max_lag: int = 10) -> float:
     se = float(np.sqrt(s / n))
     if se == 0:
         return 0.0
-    return float(x.mean() / se)
+    return float(mean / se)
 
 
 def bootstrap_ci(values: np.ndarray, iterations: int = 2000, seed: int = 7,
@@ -118,30 +122,46 @@ def bootstrap_ci(values: np.ndarray, iterations: int = 2000, seed: int = 7,
     }
 
 
-def effective_sample_size(values: np.ndarray, threshold: float = 0.10) -> dict:
+def effective_sample_size(values: np.ndarray, threshold: float = 0.10,
+                          max_lag: int = 10) -> dict:
     """Korelasyon nedeniyle etkin orneklem buyuklugu.
 
     Ayni piyasa hareketinden etkilenen islemler bagimsiz gozum sayilmaz.
-    |rho| > esik olan ardışık islem çiftleri "bagimli" sayilir ve etkin
-    orneklem kuculur.
+    Burada seri BAĞIMLILIK OLCUMU olarak gecikmeli otokorelasyon
+    (lag-1..lag-K) kullanilir ve Bartlett katsayilariyla etkin orneklem
+    hesaplanir:
+
+        n_eff = n / (1 + 2 * Σ w_k * rho_k),  w_k = 1 - k/(K+1)
+
+    HATA (duzeltildi): onceki surum ardışık isim KOSINUS benzerligi
+    kullaniyordu; getiri serilerinde bu neredeyse her zaman |rho|~1
+    verir ve etkin orneklem 0'a duserdi.
     """
     x = np.asarray(values, dtype=float)
     n = x.size
     if n < 3:
         return {"raw": int(n), "effective": int(n), "dependence_ratio": 0.0}
-    dep = 0
-    for i in range(n - 1):
-        a, b = x[i], x[i + 1]
-        denom = np.sqrt((a * a + 1e-12) * (b * b + 1e-12))
-        rho = float(a * b / denom) if denom else 0.0
-        if abs(rho) > threshold:
-            dep += 1
-    pairs = n - 1
-    ratio = 1.0 - (dep / pairs) if pairs else 1.0
+    x = x - x.mean()
+    denom_all = float(np.dot(x, x))
+    if denom_all <= 0:
+        return {"raw": int(n), "effective": int(n), "dependence_ratio": 0.0}
+    k_max = min(max_lag, n - 1)
+    s = 1.0
+    rhos: list[float] = []
+    for lag in range(1, k_max + 1):
+        rho = float(np.dot(x[lag:], x[:-lag]) / denom_all)
+        w = 1.0 - lag / (k_max + 1)
+        s += 2.0 * w * rho
+        rhos.append(rho)
+    if s <= 0:
+        s = 1e-9
+    eff = n / s
+    eff = float(min(max(eff, 1.0), n))
     return {
         "raw": int(n),
-        "effective": int(round(n * max(ratio, 0.0))),
-        "dependence_ratio": round(1.0 - max(ratio, 0.0), 4),
+        "effective": int(round(eff)),
+        "dependence_ratio": round(1.0 - eff / n, 4),
+        "autocorr_lag1": round(rhos[0], 4) if rhos else 0.0,
     }
 
 

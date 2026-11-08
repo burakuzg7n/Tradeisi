@@ -318,8 +318,21 @@ class PaperEngine:
         except asyncio.CancelledError:
             raise
         finally:
-            if self.adapter is not None:
+            await self.close()
+
+    async def close(self) -> None:
+        """Borsa oturumunu kapat.
+
+        Kapatilmazsa ccxt/aiohttp 'Unclosed client session' uyarisi yazar ve
+        program hata koduyla cikar. `--once` ve `run_forever` her ikisi de
+        bunu cagirir.
+        """
+        if self.adapter is not None:
+            try:
                 await self.adapter.close()
+            except Exception:
+                pass
+            self.adapter = None
 
     def _seconds_until_next_bar(self) -> float:
         tf = TF_SECONDS.get(self.cfg.timeframe, 86400)

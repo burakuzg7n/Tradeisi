@@ -1,0 +1,183 @@
+{
+  "strategy": "sepet_momentum",
+  "archived_at": "2026-11-08T15:10:37.113346+00:00",
+  "note": "Bu klasor 5. adayin TUM kosu gecmisini icerir: gecersiz (VOID) kosular da dahil. Dosyalar `out/reports/` altindan BIT BIT kopyalandi; hicbiri silinmedi, yeniden adlandirilmadi veya duzenlenmedi. MANIFEST.json'in kendi ozeti listede yer almaz.",
+  "verified_identical_to_source": true,
+  "files": [
+    {
+      "name": "GATES.json",
+      "bytes": 1303,
+      "sha256": "d54743d62fabf488021a91845928052b095e8880ce27ac70748bb66e8ab45061"
+    },
+    {
+      "name": "README.md",
+      "bytes": 4333,
+      "sha256": "6ec66a75251a740f20cd0a160c98c3276c20851e8df5d8e4e431d2976c471132"
+    },
+    {
+      "name": "SEPET_MOMENTUM_INSAMPLE.lock",
+      "bytes": 55,
+      "sha256": "69c41317173bad621c6d17a2c322cbd64930c4302a7302d08dde212e87741211"
+    },
+    {
+      "name": "sepet_momentum_insample_20261107_193859.json",
+      "bytes": 2136,
+      "sha256": "cf7a0ef8e9c7b8bd1c9cf25d8116dead752b2dfaceca64ba3f2ade8cce6f312c"
+    },
+    {
+      "name": "sepet_momentum_insample_20261107_193859.md",
+      "bytes": 1542,
+      "sha256": "366df3c77899102d86d75b90c2989275ccf6fe7059f741bea0d29c316b56d289"
+    },
+    {
+      "name": "sepet_momentum_insample_20261108_105543.json",
+      "bytes": 2801,
+      "sha256": "004cac3582ffe3c71dc3294b7edaee9ebbd07206848d79b8b4e8da7d77028fa9"
+    },
+    {
+      "name": "sepet_momentum_insample_20261108_105543.md",
+      "bytes": 1705,
+      "sha256": "d00b5fabe286b30588e76dd99b2092695e642d2b869ecbe98aa85089c5ea2bca"
+    },
+    {
+      "name": "sepet_momentum_insample_20261108_132730.json",
+      "bytes": 2832,
+      "sha256": "e9fe7e227fa69e9898c7c1b68f5a00fb9d2c2635b801e72c56c7cda0933430cc"
+    },
+    {
+      "name": "sepet_momentum_insample_20261108_132730.md",
+      "bytes": 1711,
+      "sha256": "daeb9c17cdcbaef9d3876519ff0301fc113a574d319b615281be795d4230b89b"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112058.json",
+      "bytes": 2814,
+      "sha256": "3f29f6920d047a18471c1d981aecc9f6936e1af83e5fad58d0897e4c40fd4f2c"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112058.md",
+      "bytes": 1711,
+      "sha256": "24e16f07e07e2aa5ccdf55e25643f8872740d388a7afcdc2834a2b18cf2bc828"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112658.json",
+      "bytes": 2814,
+      "sha256": "7026e1a4d424bcebe364f1783df942b56f72e9235aa322f99b49a138c1a814b5"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112658.md",
+      "bytes": 1711,
+      "sha256": "1fcfd0d5f583a4a81604b251d1a988d4e909dc6fb8354ee406ff06d42bf890c6"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112709.json",
+      "bytes": 2814,
+      "sha256": "316bc6866a4fb7ad2d81febc7c85473374c061a5e2ae188ba5be653ef4413123"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112709.md",
+      "bytes": 1711,
+      "sha256": "ee7a9ced2f4fab71243c60c869440a916afa54d1cda2dbe56c01bd72f8697fa6"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112909.json",
+      "bytes": 2829,
+      "sha256": "e58f56c0c329894f8c2a3291976bc9dd028afc6eb48cc3df80bcc296e9326f8e"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112909.md",
+      "bytes": 1709,
+      "sha256": "f340b964570efb61ab69587fd52694a976a12dff9da5b8d773829e5d4eca7210"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112930.json",
+      "bytes": 2822,
+      "sha256": "fa7dcaddbff0bd6039e3f27d01816f0c6b6d8e7e5ccccb8c32355efa5961da3b"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_112930.md",
+      "bytes": 1710,
+      "sha256": "d376f413560037f148d35b3f6277800c9bc441522b7b6d01b6db7f0361adbe0f"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_113113.json",
+      "bytes": 2829,
+      "sha256": "7132be3bff29eb9c1e962c6e9b527b05d9df1597e886134ea2430f6b381cbc70"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_113113.md",
+      "bytes": 1709,
+      "sha256": "6402d75b535e4b284a0159ad0fad3ac6ceae29e8854f78467a8e2e555cd20320"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_113134.json",
+      "bytes": 2822,
+      "sha256": "fd724a7ea80cdf900bbec53257064c97d146c65fc7b559ae2e6d987d885dfb49"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_113134.md",
+      "bytes": 1710,
+      "sha256": "da2d8790ad45ff3b3927c9201db4ae6e3c219a9c98d81f669a92a47e1e83d3c8"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_121909.json",
+      "bytes": 2825,
+      "sha256": "21e5cec0edf7112922792a51e6459350f4075fcf7d97c922f895164db6263d3d"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_121909.md",
+      "bytes": 1709,
+      "sha256": "1e7ec4ec24b7563b70469c80e0ab8e45a884cd50209717cdb97ab10019aed504"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_121931.json",
+      "bytes": 2829,
+      "sha256": "5b235340304c0cf4963a4bdab3c1083b452cfd78a10434dd45e73c5ca8938567"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_121931.md",
+      "bytes": 1709,
+      "sha256": "72759e42360e0928c5521b04accbcbb8b0469b3aa69de245ee55801d5eac4685"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_121954.json",
+      "bytes": 2822,
+      "sha256": "a4b75625a2bea4f18ac40510c957341a27682ae4124dbccb40755a50ec7e0090"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_121954.md",
+      "bytes": 1710,
+      "sha256": "3775247ba99d5614672e7b683f9831f495e44ec70ef8da9aafbad6635bbf8d64"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_131729.json",
+      "bytes": 2828,
+      "sha256": "1060e8738a97dd917b9559d050248020020bb5879077eaf727325039074af85c"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_131729.md",
+      "bytes": 1711,
+      "sha256": "4224cf1fe72270d36d2b8824c14193f759c6ee6992c8393996e98c87519f9283"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_131753.json",
+      "bytes": 2828,
+      "sha256": "2a43dbb1166b53b72cfa0714a4146abe67cecfbbf319efa447a28ffdd46728e9"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_131753.md",
+      "bytes": 1711,
+      "sha256": "d561208cb0179ccba398a04e228fb6ad79fb762504815f0b5480f8c5fa1b0d1a"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_131818.json",
+      "bytes": 2828,
+      "sha256": "99a5ed8b8c2dfdd1ba153bd06ca001747aa14cd74b12febd9e9d3083aba5435f"
+    },
+    {
+      "name": "sepet_momentum_none_20261108_131818.md",
+      "bytes": 1711,
+      "sha256": "543fe0e269a716d3789cced7e70d74f3f685e17d0d80eff978ee30113167b870"
+    }
+  ]
+}

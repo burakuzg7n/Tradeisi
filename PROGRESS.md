@@ -1,11 +1,12 @@
 # TradeBot — İlerleme Takibi
 
-Başlangıç: 24 Haziran 2026 · Son güncelleme: 1 Kasım 2026
+Başlangıç: 24 Haziran 2026 · Son güncelleme: 8 Kasım 2026
 
-## Güncel durum (1 Kasım 2026)
+## Güncel durum (8 Kasım 2026)
 
-**V1, V2 ve Plan B v1 REDDEDİLDİ.** Paper/testnet aşamasına geçilmez. Yeni araştırma
-Burak'ın kararını bekliyor: `docs/SONRAKI_YON_KARAR_NOTU.md`.
+**5 strateji REDDEDİLDİ** (V1, V2, Plan B v1, V3, Sepet momentum). Hiçbiri
+testnet veya canlıya geçemedi. **Çalışan program teslim edildi:** `trader/`
+paketi + `TradeBot.bat` menüsü + web paneli. Paper modu çalışıyor.
 
 | Tarih | Olay | Kayıt |
 |---|---|---|
@@ -13,9 +14,37 @@ Burak'ın kararını bekliyor: `docs/SONRAKI_YON_KARAR_NOTU.md`.
 | 31 Eki 2026 | V2 tek atış koşucusu (PR #4) ve in-sample koşusu: **KALDI** (PF 0,796; DD %22,37; 490 işlem) | `reports/V2_INSAMPLE.*`, `52239d7` |
 | 1 Kas 2026 | Plan B v1 ekleri E11–E17, günlük perp verisi + sağlık raporu (VERİ UYGUN), portföy motoru, sinyaller, koşucu (PR #5–#9) | `reports/PLANB_VERI_SAGLIK.*`, `b340ae5` |
 | 1 Kas 2026 | Plan B v1 in-sample koşusu: **KALDI** (işlem 37 < 100; DD %20,36 > %15; PF 5,93) | `reports/PLANB_INSAMPLE.*`, `6c5ed47` |
+| 2 Kas 2026 | V3 kuralları + in-sample koşusu: **KALDI** (PF 0,91; DD %95) | `reports/V3_INSAMPLE.*` |
+| 7 Kas 2026 | **Yeni strateji ailesi: sepet momentum** (çapraz kesit). Kural seti ve kapılar **veriye bakılmadan** yazılıp commit edildi | `docs/ADAY_DEGERLENDIRME_SEPET_MOMENTUM.md`, `c5358a6` |
+| 7-8 Kas 2026 | `trader/` paketi kuruldu: backtest motoru, paper motoru, ccxt (Binance+Bybit), web paneli, kapı defteri, CLI, `.bat` menüsü | `c5358a6` |
+| 8 Kas 2026 | Koşu 1: **VOID** — 3 motor hatası (tarih kırpma, pozisyon limiti, çift kapanma) | `docs/KOSU_GECMISI_SEPET_MOMENTUM.md`, `cb87126` |
+| 8 Kas 2026 | Koşu 2–3: **VOID** — backtest **deterministik değil** (kök neden bulundu) | `docs/KOSU_GECMISI_SEPET_MOMENTUM.md` |
+| 8 Kas 2026 | Determinizm düzeltmesi: `gross_exposure()` (sorted + `math.fsum`), 308 test yeşil | `tests/test_trader_determinism.py` |
+| 8 Kas 2026 | **Koşu 4: GEÇERLİ TEK ATIŞ → RED** (PF 1,140 < 1,30; DD %55,20 > %15; 823 işlem). Hold-out açılmadı | `out/reports/sepet_momentum_insample_20261108_132730.*` |
+| 8 Kas 2026 | Teslim: `docs/TEADEBOT_KULLANIM.md` (Başlangıç rehberi), README/PROGRESS/KURULUM güncel | `docs/TEADEBOT_KULLANIM.md` |
 
 Okuma notları (yıllık tablo kapanış yılına göre; kontenjan iptalleri bağımsız fırsat
 sayısı değil) ve denetimin kapsamı/sınırları: `DEVIR_NOTU.md` §0 ve karar notu §4.
+
+## 8 Kasım 2026 — Çalışan program teslimi
+
+Burak'ın istediği "çalışır halde bir trade programı" teslim edildi:
+
+| Bileşen | Durum |
+|---|---|
+| `TradeBot.bat` menüsü (8 seçenek) | ✅ |
+| `1_kurulum.bat` → `6_testnet.bat` | ✅ Hepsi ASCII, tek tıkla |
+| Veri indirme (25 sembol, günlük + funding) | ✅ 25/25 tamam, 0 boşluk |
+| Backtest motoru (çoklu sembol, gerçekçi dolum, funding, slippage) | ✅ **Deterministik** (hash seed'den bağımsız) |
+| Paper motoru (backtest'in deterministik oynatımı) | ✅ `--once` ve sürekli mod |
+| Web paneli (FastAPI + HTML) | ✅ `/api/state` 200, HTML 200 |
+| ccxt adaptörü (Binance + Bybit, testnet dahil) | ✅ |
+| Protokol kapıları + geçersiz koşu arşivi | ✅ `out/gates.json` |
+| Kullanım kılavuzu (Türkçe, adım adım) | ✅ `docs/TEADEBOT_KULLANIM.md` |
+| Testler | ✅ **308 passed** |
+
+**Kapı durumu:** `sepet_momentum` → `backtest.passed = false` → testnet ve
+canlı **kapalı**. Bu koruma amaçlıdır.
 
 ## 90 Günlük Plan
 
@@ -24,9 +53,9 @@ sayısı değil) ve denetimin kapsamı/sınırları: `DEVIR_NOTU.md` §0 ve kara
 | 1-14  | Eğitim ve Knowledge Base | ✅ Tamamlandı (+ 6 Tem: 9 dosyada hata düzeltildi) |
 | 15-30 | Strateji ve Pine Script | ✅ Tamamlandı (6 Tem) |
 | 31-45 | Backtest | ✅ TAMAMLANDI (8 Tem): 6.5 yıl, 800+ işlem → **STRATEJİ V1 REDDEDİLDİ** (PF 0.78-0.82, ban kriteri). reports/YILLIK_ANALIZ.md |
-| 46-60 | Paper Trading | ⛔ Geçilmedi: V1, V2, Plan B v1 backtest kapılarında reddedildi (1 Kas 2026) |
+| 46-60 | Paper Trading | 🔶 **Program hazır** (8 Kas): paper motoru + panel çalışıyor. ⛔ Strateji eşik geçmediği için strateji bazlı paper koşusu başlatılmadı |
 | 61-75 | Risk Engine ve Journal | ✅ Kod tamamlandı (6 Tem) |
-| 76-90 | FastAPI, CCXT, Testnet | 🔶 Kod mevcut; kapıları geçen strateji olmadığı için testnet koşusu yok |
+| 76-90 | FastAPI, CCXT, Testnet | 🔶 Kod mevcut ve çalışır; kapıları geçen strateji olmadığı için testnet koşusu yok |
 
 ## 6 Temmuz 2026 — Yapılanlar
 
