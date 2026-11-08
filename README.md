@@ -100,6 +100,8 @@ data/            Fiyat verisi (git'te yok)
   klasörü 5. adayın 16 koşusunun makine çıktılarını, kapı defterini, tek
   atış kilidini ve SHA-256 parmak izlerini içerir.
 - `out/` (çalışma klasörü) git'e girmez; kalıcı kayıt `reports/` arşividir.
+- Arşiv bütünlüğü tek komutla denetlenir: `python scripts/verify_archive.py`
+  (`ARSIV BUTUN` + çıkış kodu 0 = bozulma yok).
 - `data/` içindeki CSV'ler raporlardaki parmak izlerine bağlıdır; yeniden indirilmez.
 - `.bat` dosyaları **ASCII** kodlamayla yazılmıştır (Windows cmd uyumu).
 - `.env` gizli anahtarlar içerir; asla paylaşılmaz veya commit edilmez.

@@ -22,6 +22,7 @@ paketi + `TradeBot.bat` menüsü + web paneli. Paper modu çalışıyor.
 | 8 Kas 2026 | Determinizm düzeltmesi: `gross_exposure()` (sorted + `math.fsum`), 308 test yeşil | `tests/test_trader_determinism.py` |
 | 8 Kas 2026 | **Koşu 4: GEÇERLİ TEK ATIŞ → RED** (PF 1,140 < 1,30; DD %55,20 > %15; 823 işlem). Hold-out açılmadı | `out/reports/sepet_momentum_insample_20261108_132730.*` |
 | 8 Kas 2026 | Teslim: `docs/TEADEBOT_KULLANIM.md` (Başlangıç rehberi), README/PROGRESS/KURULUM güncel | `docs/TEADEBOT_KULLANIM.md` |
+| 8 Kas 2026 | **Arşiv:** 5. adayın 16 koşusu + kapı defteri + tek atış kilidi + SHA-256 parmak izleri `reports/SEPET_MOMENTUM/` altına alındı; `scripts/verify_archive.py` ile doğrulanabilir | `reports/SEPET_MOMENTUM/`, `368175e` |
 
 Okuma notları (yıllık tablo kapanış yılına göre; kontenjan iptalleri bağımsız fırsat
 sayısı değil) ve denetimin kapsamı/sınırları: `DEVIR_NOTU.md` §0 ve karar notu §4.

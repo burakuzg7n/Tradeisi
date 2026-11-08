@@ -63,8 +63,20 @@ sonucu verdi. Aynı düzeltilmiş motorla yapılan doğrulama koşuları:
 
 ## Bütünlük
 
-`MANIFEST.json` içindeki SHA-256 özetleri, arşivlenen dosyaların özetleridir.
-Dosyalar `out/reports/` altından **bit bit** kopyalandı; içerik değiştirilmedi.
+`MANIFEST.json` içindeki SHA-256 özetleri, arşivdeki **depolanan (kanonik, LF)**
+içeriğin özetleridir. Dosyalar `out/reports/` altından **bit bit** kopyalandı;
+içerik değiştirilmedi. (Çalışma kopyasındaki CRLF satır sonları fark
+yaratmaz — `core.autocrlf` + `.gitattributes` nedeniyle git metni LF ile
+saklar.)
+
+Doğrulama (tek komut, her makinede çalışır):
+
+```
+python scripts/verify_archive.py
+```
+
+Çıktı `ARSIV BUTUN` ise arşiv bozulmamıştır; çıkış kodu 0. `--write` ile
+manifest yeniden üretilir.
 
 ## Bilinçli kalan riskler (rapor bunları saklamaz)
 
