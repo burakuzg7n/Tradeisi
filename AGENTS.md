@@ -40,12 +40,12 @@ geçerlidir.
   §8/§9 ifadesini o noktada değiştirir. Sonuç görüldükten sonra değiştirilemez;
   değişiklik = yeni versiyon.
 
-## Rol dağılımı (3 Kasım 2026 — Burak'ın devir kararı)
-- **ChatGPT:** araştırma önerisi, tasarım, kod ve test uygulaması; değişiklikleri
-  `chatgpt/...` dalında Pull Request olarak hazırlar.
-- **Claude:** bağımsız kod/mantık, rapor ve doküman denetimi; spesifikasyon,
+## Rol dağılımı (9 Kasım 2026 — Burak'ın kararı; 3 Kasım dağılımının yerine geçer)
+- **Claude:** araştırma önerisi, tasarım, kod ve test uygulaması; değişiklikleri
+  `claude/...` dalında Pull Request olarak hazırlar.
+- **ChatGPT:** bağımsız kod/mantık, rapor ve doküman denetimi; spesifikasyon,
   lookahead, maliyetler, sınır durumları ve test kapsamını kontrol eder.
-- Uygulayıcının kendi testleri bağımsız denetim sayılmaz. Claude'un mutasyon
+- Uygulayıcının kendi testleri bağımsız denetim sayılmaz. Denetçinin mutasyon
   testleri ayrı geçici kopyada yapılır; incelenen dal değiştirilmez.
 - **Burak:** yeni aday/gerçek veri koşusu kararını ve merge kararını verir.
 - Rol devri yeni strateji veya gerçek veri koşusu izni değildir. Retler, kilitler,
