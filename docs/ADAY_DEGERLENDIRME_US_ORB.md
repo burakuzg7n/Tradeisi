@@ -1,10 +1,10 @@
 # Aday değerlendirme — US ORB "Stocks in Play" (V-ORB v1)
 
-**Sürüm:** v0.4 taslak (9 Kasım 2026) · **Hazırlayan:** Claude · **Denetim:** ChatGPT · **Karar:** Burak
+**Sürüm:** v0.5 taslak (9 Kasım 2026) · **Hazırlayan:** Claude · **Denetim:** ChatGPT · **Karar:** Burak
 **Statü:** TASLAK. Kurallar ve kapılar **hiçbir fiyat/getiri verisine bakılmadan** yazıldı.
 Yalnız veri erişimi kontrol edildi (SPY 5dk bar SAYISI, 2016–2026; fiyat/getiri hesaplanmadı).
 **Kâr garantisi yok.** RED geçerli bir sonuçtur.
-**Değişiklik geçmişi:** v0.2 = ChatGPT 1. denetimi (§12.1) · v0.3 = 2. denetim (§12.2) · v0.4 = 3. denetim (§12.3).
+**Değişiklik geçmişi:** v0.2 = ChatGPT 1. denetimi (§12.1) · v0.3 = 2. denetim (§12.2) · v0.4 = 3. denetim (§12.3) · v0.5 = 4. denetim (§12.4).
 `[TK]` = makalede olmayan, bu notta verilmiş **yeni tasarım kararı**.
 
 ## 1. Ekonomik kaynak ve bağımsız kanıt
@@ -25,7 +25,7 @@ Yalnız veri erişimi kontrol edildi (SPY 5dk bar SAYISI, 2016–2026; fiyat/get
 | D4 | Zaman: tüm zamanlar `America/New_York`, yaz saati dahil. Alpaca bar zaman damgası **bar başlangıcıdır**; 1dk bar t = [t, t+1dk). Takvim ve yarım günler Alpaca `/v2/calendar`. |
 | D5 | Evren: Alpaca varlıkları, `active` + `inactive`, `class=us_equity`. Kimlik = Alpaca **asset id**. Adında ETF/ETN/Fund/Trust/Warrant/Unit/Right/Preferred geçenler dışlanır ve dışlama nedeni kaydedilir `[TK]`. Sonuç **"Alpaca'da erişilebilen evrende araştırma"** diye sunulur. |
 | D6 | Sembol yeniden kullanımı: aynı sembolün günlük verisinde ≥ 30 takvim günü boşluk varsa boşluktan sonrası **yeni seri** sayılır, ısınma baştan başlar `[TK]`. |
-| D7 | Isınma: ATR(14) için 15 seans (14 True Range + ilk TR'nin önceki kapanışı); K3 ve K5 için önceki 14 seans. Yetersiz geçmiş → o gün aday değil. |
+| D7 | Isınma: ATR(14) için 15 seans (14 True Range + ilk TR'nin önceki kapanışı); K3 için önceki 14 seansın tamamı; K5 paydası için önceki 14 seansın ilk barlarından **en az 10'u** (K5). Yetersiz geçmiş → o gün aday değil. |
 
 ## 3. Kurallar
 | # | Kural | Değer |
@@ -34,46 +34,50 @@ Yalnız veri erişimi kontrol edildi (SPY 5dk bar SAYISI, 2016–2026; fiyat/get
 | K2 | Fiyat | O günün 09:30 açılış fiyatı (raw) > 5 $ |
 | K3 | Likidite | Önceki 14 seans ortalama günlük hacim ≥ 1.000.000 adet (D3 ölçeğinde) |
 | K4 | Oynaklık | ATR(14) > 0,50 $; ATR = önceki 14 True Range'in basit ortalaması (D3 ölçeğinde) |
-| K5 | RelVol | Pay: bugünün tamamlanmış 09:30–09:35 bar hacmi. Payda: önceki 14 seansın aynı bar hacimlerinin ortalaması. RelVol ≥ 1,00. Bu barı olmayan hisse aday değil. |
-| K6 | Seçim | K2–K5'i geçenlerden RelVol'e göre ilk 20 |
-| K7 | Yön | İlk 5dk bar kapanış > açılış → long; < → short; eşit → işlem yok |
-| K8 | Giriş | Long: ilk barın tepesine buy-stop; short: dibine sell-stop. Emirler **09:37'de** etkin `[TK]`; son giriş **15:30**, tetiklenmeyenler 15:30'da iptal `[TK]`. Yarım gün: son giriş 12:30. |
+| K5 | RelVol | Pay: bugünün tamamlanmış 09:30–09:35 bar hacmi. Payda: önceki 14 seansta bu bar mevcut olanların (en az 10) hacim ortalaması; 10'dan az ya da payda 0 → aday değil `[TK]`. RelVol ≥ 1,00. Bugünün bu barı yoksa aday değil. |
+| K6 | Seçim | K2–K5'i geçenlerden RelVol'e göre ilk 20; eşit RelVol'de sembol alfabetik sırası `[TK]` |
+| K7 | Yön | **Yalnız long:** ilk 5dk bar kapanış > açılış → long adayı; kapanış ≤ açılış → işlem yok. **[SAPMA: makale long + short; gerekçe §3.1]** |
+| K8 | Giriş | İlk 5dk barın tepesine buy-stop. Emirler **09:37'de** etkin `[TK]`; son giriş **15:30**, tetiklenmeyenler 15:30'da iptal `[TK]`. Yarım gün: son giriş 12:30. |
 | K9 | Stop | Gerçekleşen giriş fiyatından 0,10 × ATR(14). Stop yalnız seans içinde geçerli. |
 | K10 | Gün sonu | Açık pozisyon **15:55'te piyasa emriyle** kapanır `[TK]` (yarım gün 12:55). `cls` kullanılmaz. Taşıma: §4.3. |
 | K11 | Adet | adet = ⌊min(A, B, C)⌋: **A** = 0,005 × E / (0,10 × ATR) (hedef risk; maliyet ve stop kayması hariç), **B** = 0,01 × 09:30–09:35 hacmi `[TK]`, **C** = kalan kapasite / rezervasyon fiyatı (K12). E = gün başı equity. %0,5 **hedef** risktir; gerçekleşen kayıp daha büyük olabilir ve dağılımı raporlanır. [SAPMA: makale %1] |
-| K12 | Kapasite | Kapasite = 4 × E − (önceki günden taşınan pozisyonların brüt piyasa değeri). 09:37'de bekleyen her emir için nominal ayrılır; rezervasyon fiyatı long'da seviye × 1,10, short'ta seviye `[TK]`. RelVol sırasıyla eklenir; sığmayan atlanır, gün içinde tekrar değerlendirilmez. Dolumda brüt pozisyon yine de 4 × E'yi aşacaksa adet sığacak kadar azaltılır ve olay kaydedilir. |
-| K13 | Short kısıtı (Rule 201) | Eşik T = 0,90 × önceki kapanış. SSR önceki günden devraldıysa o gün short emri verilmez. Gün içinde her 1dk bar **şu sırayla** işlenir: (1) **Açılış:** açılış ≤ T ise SSR açılışta etkinleşir, bekleyen short dolmaz (açılış hem tetik hem eşikse dolmamış sayılır). Değilse ve açılış ≤ giriş seviyesi ise short açılışta dolar (gap kuralı). (2) **Bar içi:** fiyat açılıştan aşağı sürekli hareket ettiği için önce yüksek olan seviyeye değer: seviye > T ise ve düşük ≤ seviye → short **dolar**, ardından düşük ≤ T ise SSR etkinleşir (dolmuş işlemi iptal etmez). Seviye ≤ T ise ve düşük ≤ T → SSR önce etkinleşir, short **dolmaz**. (3) SSR etkinleştikten sonra yalnız **hâlâ bekleyen** short emirleri iptal edilir. SSR ertesi güne taşınır. |
-| K14 | Ödünç | Tarihsel ödünç (ETB/HTB, locate) verisi yok → tarihsel sonuçlar **"ödünç erişimi varsayımı altında araştırma"**dır. Short uygulanabilirliği geçmiş testle doğrulanmış sayılmaz (§9). |
+| K12 | Kapasite | Kapasite = 4 × E − (önceki günden taşınan pozisyonların brüt piyasa değeri). 09:37'de bekleyen her emir için nominal ayrılır; rezervasyon fiyatı seviye × 1,10 `[TK]`. RelVol sırasıyla eklenir; sığmayan atlanır, gün içinde tekrar değerlendirilmez. Dolumda brüt pozisyon yine de 4 × E'yi aşacaksa adet sığacak kadar azaltılır ve olay kaydedilir. |
+
+### 3.1 Neden yalnız long (v0.5 kararı, veriye bakılmadan)
+- Tarihsel ödünç (ETB/HTB, locate) verisi yok; short bacağın geçmişte **yapılabilir** olduğu doğrulanamaz (2. ve 3. denetim).
+- Rule 201 (SSR) tetiği ile sell-stop tetiğinin aynı dakikadaki sırası dakikalık OHLC'den kesinleştirilemez (4. denetim P1-2).
+- Bu iki belirsizlik short bacağını, sonucu ne çıkarsa çıksın yorumlanamaz kılar. Long bacağında ikisi de yoktur.
+- Bedeli: sonuç makalenin tam replikasyonu değil, **long bacağının replikasyonu**dur. Short bacağı ayrı bir sürümde, ancak trade seviyesi ödünç/SSR verisiyle ele alınabilir.
+- İşlem sayısına etkisi sınırlı: K12 kapasitesi günde zaten yalnız birkaç emre yer verdiği için (§8) bağlayıcı kısıt sinyal sayısı değil sermayedir.
 
 ## 4. Yürütme ve maliyet modeli (1dk barlarla)
 ### 4.1 Dolum ve maliyet
 - **Kayma (her dolumda, aleyhe):** k = max(0,01 $; 0,0005 × fiyat) `[TK]`; spread dahil kabul edilir. Alışlar +k, satışlar −k.
-- **Giriş:** Tetik barının açılışı seviyeyi gap ile geçmişse dolum = açılış ± k; değilse seviye ± k.
+- **Giriş:** Tetik barının açılışı seviyenin üstündeyse (gap) dolum = açılış + k; değilse seviye + k.
 - **Giriş barında stop seviyesine de değilmişse** stop varsayılır.
-- **Stop:** seviye ∓ k; bar açılışı stop'un ötesindeyse açılış ∓ k. Long/short simetrik.
+- **Stop:** stop seviyesi − k; bar açılışı stop'un altındaysa açılış − k.
 - **Gün sonu:** 15:55 1dk barının açılışı ∓ k.
 - **Komisyon:** 0,0035 $/adet her yönde. **SEC Section 31** ve **FINRA TAF**: yalnız satış yönü, işlem tarihindeki resmî tarifeyle, işlem başına yukarı cent'e yuvarlanır.
 - **Kısmi dolum yok** varsayılır; K11-B tavanı bu varsayımı sınırlar.
 - **Stres (G5/H4):** kayma, komisyon, düzenleyici ücretler ve §4.3 finansman giderlerinin **hepsi ×2**; tüm simülasyon (boyutlama ve equity yolu dahil) baştan koşulur.
 - **İşletme gideri:** canlı SIP verisi 99 $/ay = 1.188 $/yıl. Sonuçlar ayrıca **veri gideri sonrası** net olarak (25.000 $ ve 2.000 $ başlangıç için) raporlanır (betimleyici; §10 kuralı ayrıdır ve gider sonrası kârlılık anlamına gelmez).
 
-### 4.2 Eksik ve çelişkili bar — iki kaynaklı muhafazakâr kural
-Bar verisi tek başına "işlem yok", "durma (halt)" ve "veri kaybı"nı ayırt edemez; bir veri kaybı stop'u gizleyebilir. Bu yüzden iki bağımsız Alpaca agregasyonu kullanılır: **A** = 1dk barlar, **B** = 5dk barlar.
-- **İlke:** Hiçbir veri eksikliği veya çelişkisi strateji **lehine** sonuç üretemez.
-- Emir veya pozisyonun etkin olduğu her 5dk pencere için A'nın o penceredeki en yüksek/en düşüğü B ile karşılaştırılır.
-- **Uyumlu** (A'nın aralığı B'yi tam kapsıyor, eksik dakika B'nin aralığını değiştirmiyor): yürütme A ile.
-- **B daha geniş** (A'da eksik dakika ya da eksik kayıt var): o pencere **tek bir 5dk bar (B)** olarak yürütülür, tek bar muhafazakâr kurallarıyla: B'nin düşüğü long stop'una değiyorsa (yüksek short stop'una) stop dolmuş sayılır (stop ∓ k; açılış stop ötesindeyse açılış ∓ k); aynı pencerede giriş ve stop birlikte mümkünse stop varsayılır. Örnek: giriş 100, stop 99, kayıp dakikada fiyat 98, sonraki görünen bar 101 → B'nin düşüğü ≤ 99 olduğundan **stop dolmuş** sayılır.
-- **A, B'nin dışına taşıyor** (A high > B high veya A low < B low): kaynaklar çelişiyor; yürütme iki kaynağın **birleşik aralığıyla**, aynı tek bar muhafazakâr kurallarıyla yapılır.
-- **İki kaynakta da pencere boş:** işlem yok/halt kabul edilir (bu durumda veri kaybı tespit edilemez; §11 sınırı).
-- **V0'a etkisi:** Stop tarafındaki çözümler strateji aleyhine olduğundan V0'ı engellemez, sayısı raporlanır. Ama **giriş kararı kaynağa bağlıysa** (bir kaynağa göre giriş var, diğerine göre yok) etkinin yönü bilinemez → V5'e göre **tek olay V0 KALDI**.
+### 4.2 Eksik bar — mutabakat ya da KALDI
+Bar verisi tek başına "işlem yok", "durma" ve "veri kaybı"nı ayırt edemez; bir veri kaybı stop'u ya da gerçek kayıp büyüklüğünü gizleyebilir. v0.4'teki "5dk barla tamamla" yaklaşımı bunu çözmedi (4. denetim P1-1). v0.5 ilkesi: **eksik veriyi tahminle tamamlama yok; ya hacim mutabakatıyla eksiksiz olduğu gösterilir ya da V0 KALDI.**
+- **Kaynaklar:** A = 1dk barlar, B = 5dk barlar, Dg = günlük bar (üçü de Alpaca SIP, raw).
+- **Pencere mutabakatı:** Emir veya pozisyonun etkin olduğu her 5dk pencerede Σ(A hacmi) = B hacmi (**tam eşitlik**, hacimler tam sayıdır). Eşitse A o pencerede eksiksiz kabul edilir; barı olmayan dakika **gerçekten işlem görmemiş** dakikadır ve o dakikada dolum olmaz.
+- **Gün mutabakatı:** İşlem yapılan her hisse-günde Σ(o günün tüm A barlarının hacmi, seans dışı dahil) = Dg hacmi (tam eşitlik). İki agregasyonun birlikte boş olduğu pencereler bu sayede bağımsız bir kaynakla sınanır.
+- **Etkin emir veya pozisyonu etkileyen herhangi bir mutabakatsızlık = tek olay V0 KALDI** (V5). Etkinin yönünü veya büyüklüğünü tahmin etmeye çalışılmaz; düşük olay oranı düşük etki kanıtı sayılmaz.
+- **Bilinen risk:** Agregasyon tanımları (işlem koşulu filtreleri) kaynaklar arasında sistematik olarak farklıysa V0 bu maddeden kalır. Bu durumda strateji kuralı değişmez; **veri yöntemi v2** (Alpaca trade seviyesi veriden bar üretimi) ayrı bir notla yazılır ve V0 yeniden koşulur.
+- **Aynı 1dk barda giriş ve stop:** stop varsayılır (bilinen en kötü sıra).
 
 ### 4.3 Taşınan pozisyon (halt / bar yok)
 1. 15:55'te bar yoksa piyasa emri 15:59'a kadar her dakika yeniden denenir (ilk bar = dolum).
 2. 15:55–15:59 arası hiç bar yoksa pozisyon **taşınır**. Gece stop yoktur.
 3. Ertesi seans pozisyon **açılış emriyle (`opg`)** kapanır: dolum = günün ilk RTH bar açılışı ∓ k. Açılışta da bar yoksa 2. adımdaki gibi dakika dakika denenir; seans sonuna kadar dolmazsa yine taşınır.
 4. Taşınan pozisyon K12'de kapasiteden düşülür.
-5. **Finansman `[TK]`:** taşınan her gece için long'da equity'yi aşan borç kısmına yıllık %10, short'ta pozisyon değerine yıllık %10 ödünç gideri (365 güne bölünerek).
-6. **Dönem sonu:** Dönemin son seansında açık kalan pozisyon geriye dönük kapatılmaz. Dönem sonrasındaki seanslarda (yalnız bu amaçla, en fazla **5 seans**) 3. adımdaki gibi gerçek bir çıkış emriyle kapatılır; bu PnL döneme yazılır. In-sample için bu seanslar 2024-01 başındaki kullanılmayan aralıktadır; hold-out için 2026-11 başındadır. 5 seans içinde kapanamayan pozisyon kalırsa: equity ve DD'de son mevcut fiyatla **değerlenir** ama **kapanmış işlem sayılmaz** (PF'ye girmez) ve o dönem için **KARAR YOK** (G veya H kararı verilmez, durum arşivlenir).
+5. **Finansman `[TK]`:** taşınan her gece için equity'yi aşan borç kısmına yıllık %10 (365 güne bölünerek).
+6. **Dönem sonu (tasfiye uzantısı):** Dönemin son seansında açık kalan pozisyon geriye dönük kapatılmaz. Dönemin son seansını izleyen en fazla **5 seans** "tasfiye uzantısı"dır: bu seanslarda **yeni emir verilmez**, yalnız açık pozisyon 3. adımdaki gibi gerçek bir çıkış emriyle kapatılır. Uzantı seansları dönemin günlük getiri, DD ve HAC serisine eklenir; kapanan işlem PF ve net sonuca girer; bu seanslar ilgili sembol için V0 kapsamındadır. Açık pozisyon yoksa uzantı yoktur. In-sample uzantısı 2024 Ocak başına, hold-out uzantısı 2026 Kasım başına düşer. 5 seans içinde kapanamayan pozisyon kalırsa: equity ve DD'de son mevcut fiyatla **değerlenir** ama **kapanmış işlem sayılmaz** (PF'ye girmez) ve o dönem için **KARAR YOK** (G veya H kararı verilmez, durum arşivlenir).
 7. Taşıma olayları sayı, süre ve PnL olarak ayrı raporlanır; PnL'e dahildir.
 
 ## 5. Ölçüm tanımları
@@ -93,8 +97,8 @@ V0'ın her maddesi GEÇTİ/KALDI üretir; **tek bir KALDI = V0 KALDI.** V0 KALDI
 | V1 | Bütünlük | Kullanılan tüm barlarda NaN/∞, high < max(open, close), low > min(open, close), negatif hacim, aynı zaman damgasında çelişkili mükerrer kayıt | **≥ 1 kayıt** |
 | V2 | Takvim | Her seansın tarihi, açılış/kapanış saati Alpaca takvimiyle eşleşir; seans dışı zaman damgalı bar kullanılmaz | ≥ 1 uyumsuz seans |
 | V3 | Veri varlığı | Ölçüm, dönemin **ısınma sonrası ilk seansından** başlar. Her seansta günlük barı olan evren sembolü sayısı (piyasadan değil veriden kaynaklanan kopuşu yakalamak için). K2–K4'ü geçen hisse sayısı yalnız raporlanır, kapı değildir (aday azlığı veri bozukluğu kanıtı değildir; K6 o gün daha az hisse alır). | Herhangi bir seansta günlük barı olan sembol sayısı, önceki 20 seansın medyanının **%50'sinin altında** |
-| V4 | Seçim barı | K2–K4'ü geçen **tüm** hisse-günleri (K5 öncesi). Her biri için 09:30–09:35 penceresi: (a) A ve B'de var, hacimler %2 içinde → geçerli; (b) yalnız birinde var veya hacim farkı > %2 → **kaynak çelişkisi**; (c) ikisinde de yok → "açılışta işlem yok", aday değil. RelVol paydası: önceki 14 seansın ilk barlarından en az 10'u varsa mevcutların ortalaması; 10'dan azsa aday değil `[TK]`. Payda 0 ise aday değil. | (b) türü: K6 seçimini değiştirebilecek (RelVol sırası ilk 20'ye girip çıkmasını etkileyen) **tek olay**; ya da (b)+(c) toplamı, K2–K4'ü geçen hisse-günlerinin **> %0,5**'i (seçim tarafında etkinin yönü sistematik değildir; eşik önceden sabit) |
-| V5 | Yürütme kaynağı | §4.2 sınıflaması: giriş kararı kaynağa bağlı pencere sayısı; stop tarafında muhafazakâr çözülen pencere sayısı (yalnız rapor) | Giriş kararı kaynağa bağlı **≥ 1 pencere** |
+| V4 | Seçim ve emir kararı | K2–K4'ü geçen **tüm** hisse-günleri için 09:30–09:35 penceresi A ve B'de karşılaştırılır (bugün ve K5 paydasına giren önceki 14 seans). Her gün için seçim zinciri **iki kez** kurulur: RelVol yalnız A hacimleriyle ve yalnız B hacimleriyle → K6 sıralı liste → K7 yön → K12 kabul edilen emirler → K11 adetleri. | İki zincirin herhangi bir günde **sıralı kabul listesi veya herhangi bir emrin adedi** farklıysa → **tek olay KALDI** (sıra değişikliği kapasiteyi kimin kullandığını değiştirebilir). Ayrıca B'de var A'da yok (veya tersi) ilk bar olan hisse-günleri K2–K4 hisse-günlerinin > %0,5'i ise KALDI. |
+| V5 | Yürütme mutabakatı | §4.2 pencere ve gün mutabakatı, etkin emir/pozisyonu olan her pencere ve hisse-gün (tasfiye uzantısı dahil) | **≥ 1 mutabakatsızlık** |
 | V6 | Ölçek | Bölünmeden etkilenen her gösterge penceresinde **aynı geçmiş barın** ham ve dönüştürülmüş değerleri karşılaştırılır: dönüştürülmüş fiyat = ham ÷ oran, hacim = ham × oran (yalnız yuvarlama farkı, göreli 1e-9). Bağımsız çapraz kontrol: ex-date'inden sonra başka bölünme olmamış her olayda dönüştürülmüş barlar Alpaca `adjustment=split` barlarıyla karşılaştırılır (göreli 1e-4). Ayrıca yalnız işlem tarihine kadar ex-date'i gelmiş bölünmelerin kullanıldığı test edilir. | **≥ 1 uyumsuzluk** |
 | V7 | Isınma | D7'ye uymayan aday sayısı | ≥ 1 |
 | V8 | Yürütme testleri | §7'deki sentetik testlerin tamamı beklenen sonucu verir | ≥ 1 başarısız test |
@@ -102,7 +106,7 @@ V0'ın her maddesi GEÇTİ/KALDI üretir; **tek bir KALDI = V0 KALDI.** V0 KALDI
 
 ## 7. Zorunlu sentetik yürütme testleri (V8)
 Her biri sabit girdi ve beklenen sonuçla birim testi olarak yazılır:
-gap ile giriş dolumu (long ve short) · giriş barında stop · K12 rezervasyon sırası ve atlama · dolumda 4× aşımında adet azaltma: 25.000 $ equity, ATR 1,25, long seviye 100, hacim tavanı bağlamıyor → A = 1.000, C = ⌊100.000 / 110⌋ = **909 adet** ayrılır; açılış 105'te dolum 105,0525 → 95.493 $, azaltma **yok**; açılış 120'de dolum 120,06 → 909 adet 109.135 $ olurdu, adet **⌊100.000 / 120,06⌋ = 832**'ye düşer · K11 A/B/C'den hangisinin bağladığı · 09:37 öncesi dolum olmaması · 15:30 iptal · yarım gün saatleri · K13 SSR sırası: önceki kapanış 100, T = 90, short seviye 95, dakika 94'ten açılıp 89'a düşüyor → short açılışta **94 − k ile dolar**, SSR sonra etkinleşir ve dolmuş işlemi iptal etmez; seviye 89, düşük 88 → SSR önce, short **dolmaz**; açılış 90 → SSR açılışta, short dolmaz; ertesi güne taşınma · §4.2 iki kaynak: giriş 100, stop 99, A'da eksik dakika, B düşüğü 98, sonraki A barı 101 → **stop dolmuş**; giriş kararı kaynağa bağlı pencere → V5 KALDI · 15:55'te bar yokken yeniden deneme · taşınan pozisyonun `opg` kapanışı, kapasiteden düşülmesi ve finansmanı · dönem sonunda açık pozisyonun dönem sonrası seanslarda gerçek emirle kapanması ve 5 seans sonra KARAR YOK · D3 bölünme ölçeği · D6 sembol yeniden kullanımı · D7 ısınma sınırı (14 TR + önceki kapanış) · işlemsiz ama taşınan pozisyonlu gün getirisi · maliyet ×2 stresinin yeniden simülasyonu.
+gap ile giriş dolumu · giriş barında stop · K12 rezervasyon sırası ve atlama · dolumda 4× aşımında adet azaltma: 25.000 $ equity, ATR 1,25, long seviye 100, hacim tavanı bağlamıyor → A = 1.000, C = ⌊100.000 / 110⌋ = **909 adet** ayrılır; açılış 105'te dolum 105,0525 → 95.493 $, azaltma **yok**; açılış 120'de dolum 120,06 → 909 adet 109.135 $ olurdu, adet **⌊100.000 / 120,06⌋ = 832**'ye düşer · K11 A/B/C'den hangisinin bağladığı · 09:37 öncesi dolum olmaması · 15:30 iptal · yarım gün saatleri · K7 kapanış = açılış ve kapanış < açılış → emir yok · §4.2 mutabakat: (i) 10:00'da 98, 10:02'de giriş 100,05 / stop 99,05, 10:03 A'da eksik ama B hacmi Σ A'dan büyük → **V5 KALDI** (aralıklar aynı olsa bile); (ii) önceden açık long, stop 99, B 101'den açılıyor, eksik dakika 90'dan açılmış → hacim farkı → **V5 KALDI**; (iii) eksik dakika ama Σ A = B ve gün mutabakatı tutuyor → o dakikada dolum yok, geçerli · V4: A ve B'de aynı 20 hisse, ilk ikisinin sırası farklı ve birincisi kapasiteyi tüketiyor → **V4 KALDI** · 15:55'te bar yokken yeniden deneme · taşınan pozisyonun `opg` kapanışı, kapasiteden düşülmesi ve finansmanı · dönem sonunda açık pozisyonun dönem sonrası seanslarda gerçek emirle kapanması ve 5 seans sonra KARAR YOK · D3 bölünme ölçeği · D6 sembol yeniden kullanımı · D7 ısınma sınırı (14 TR + önceki kapanış) · işlemsiz ama taşınan pozisyonlu gün getirisi · maliyet ×2 stresinin yeniden simülasyonu.
 
 ## 8. Örneklem ve güç planı (SONRAKI_YON_KARAR_NOTU §3)
 Gerçek getiri dağılımı bilinmiyor; varsayımlar açıktır.
@@ -112,7 +116,7 @@ Gerçek getiri dağılımı bilinmiyor; varsayımlar açıktır.
 - **Gereken gün:** Sharpe 1,0 → ≈ 2.572 · Sharpe 1,5 → ≈ 1.143 · Sharpe 2,0 → ≈ 643.
 - **Mevcut veri:** in-sample ≈ 1.990 seans → güç ≈ %69 (Sharpe 1,0), %96 (1,5), ≈ %100 (≥ 2,0). Hold-out ≈ 655 seans → güç ≈ %29 (1,0), %56 (1,5), %81 (2,0), %98 (2,8).
 - **Sonuç:** in-sample, makalenin iddia ettiği büyüklükteki (Sharpe ≈ 2,8) bir etkiyi ayırt etmeye yeter; Sharpe 1,0 civarındaki küçük bir etkiyi kaçırma olasılığı ≈ %31'dir. Hold-out yalnız büyük etkileri doğrulayabilir; H kapıları HAC t istemez, kesin kanıt sayılmaz. Asıl ileriye dönük doğrulama paper aşamasıdır.
-- **İşlem sayısı tahmini (sermaye kısıtıyla):** K11-A'ya göre bir pozisyonun nominali = 0,05 × E × (fiyat / ATR). Fiyat/ATR'nin 20–50 arasında olduğu varsayımıyla tek emir **1× – 2,5× E** nominal ayırır; 4× kapasiteye günde yalnız **≈ 2–4 emir** sığar (20 sinyalin çoğu atlanır). Tetiklenme oranı %30–%70 varsayımıyla günde ≈ 0,6–2,8 işlem → in-sample ≈ **1.200–5.600 işlem**, işlemli gün ≈ **900–1.700**. G6 (1.000 işlem / 500 gün) bu aralığın alt ucuna yakındır ve **bağlayıcı olabilir**; G6 kalırsa sonuç RED'dir, eşik değiştirilmez. Güç planı işlemli günler üzerinden değil, tüm seanslardaki günlük portföy getirisi (işlemsiz günler §5'e göre) üzerinden yapıldığı için §8 güç sayıları değişmez; ancak işlemli gün azaldıkça günlük getiri dağılımı daha seyrek ve kalın kuyruklu olur (1,3 şişirme varsayımının iyimser kalma riski).
+- **İşlem sayısı tahmini (sermaye kısıtıyla; ölçüm değil, fiyat/ATR ve tetiklenme varsayımlarına dayalı tahmin):** K11-A'ya göre bir pozisyonun nominali = 0,05 × E × (fiyat / ATR). Fiyat/ATR'nin 20–50 arasında olduğu varsayımıyla tek emir **1× – 2,5× E** nominal ayırır; 4× kapasiteye günde yalnız **tahminen ≈ 2–4 emir** sığar (20 sinyalin çoğu atlanır). Tetiklenme oranı %30–%70 varsayımıyla günde ≈ 0,6–2,8 işlem → in-sample ≈ **1.200–5.600 işlem**, işlemli gün ≈ **900–1.700**. G6 (1.000 işlem / 500 gün) bu aralığın alt ucuna yakındır ve **bağlayıcı olabilir**; G6 kalırsa sonuç RED'dir, eşik değiştirilmez. Güç planı işlemli günler üzerinden değil, tüm seanslardaki günlük portföy getirisi (işlemsiz günler §5'e göre) üzerinden yapıldığı için §8 güç sayıları değişmez; ancak işlemli gün azaldıkça günlük getiri dağılımı daha seyrek ve kalın kuyruklu olur (1,3 şişirme varsayımının iyimser kalma riski).
 
 ## 9. Kapılar (veriye bakmadan sabit)
 **In-sample (replikasyon):** işlem ve performans 2016-01-01 → 2023-12-31 (ilk işlem günü D7 ısınmasından sonra), tek atış.
@@ -125,17 +129,17 @@ Gerçek getiri dağılımı bilinmiyor; varsayımlar açıktır.
 | G5 Maliyetler ×2 iken net | > 0 |
 | G6 Örneklem | ≥ 1.000 kapanmış işlem ve ≥ 500 işlemli gün |
 
-**Hold-out (yayın sonrası):** işlem ve performans **2024-03-18 → 2026-10-30**. 2024-01-01 → 2024-03-15 arası **işlem ve performans hesabına alınmaz; yalnız gösterge ısınmasında** (D7) kullanılır. Yalnız V0_IS, G1–G6 ve V0_HO geçerse açılır.
+**Hold-out (yayın sonrası):** işlem ve performans **2024-03-18 → 2026-10-30**. 2024-01-01 → 2024-03-15 arasında **yeni işlem açılmaz**; bu aralık yalnız (a) hold-out gösterge ısınması (D7) ve (b) in-sample tasfiye uzantısı (§4.3/6) için kullanılır. Yalnız V0_IS, G1–G6 ve V0_HO geçerse açılır.
 H1 PF > 1,15 · H2 DD < %25 · H3 net > 0 · H4 maliyetler ×2 iken net > 0 · H5 ≥ 200 işlemli gün.
 Günlük getiri ortalamasının %95 güven aralığı raporlanır (kapı değil).
 
-**Kabul durumu (geçse bile):** "Ödünç erişimi varsayımı altında ve veri revizyonu riski kalan araştırma sonucu." Bu, canlı uygulanabilirlik kanıtı değildir.
+**Kabul durumu (geçse bile):** "Yalnız long bacağında, veri revizyonu riski kalan araştırma sonucu." Bu, canlı uygulanabilirlik kanıtı değildir.
 
 ## 10. Uygulanabilirlik ve canlıya geçiş koşulları
 - **Komisyon:** Alpaca perakende hisse işlemleri komisyonsuz; Midas (1,5 $/işlem) bu stratejiyi imkânsız kılar.
 - **PDT:** Alpaca dokümanına göre FINRA'nın yeni gün içi marjin kuralıyla 25.000 $ şartı ve işlem sayma kalktı; standart 2.000 $ asgari equity geçerli.
 - **Canlı veri gideri `[TK]`:** SIP gerçek zamanlı veri 99 $/ay. Yıllık veri gideri sermayenin %5'ini aşamaz (≥ 23.760 $), ya da ücretsiz IEX verisiyle çalışan **ayrı bir sürüm** kendi testini ve paper aşamasını geçer. SIP'te test edip canlıda IEX kullanmak aynı strateji sayılmaz.
-- **Paper aşamasında zorunlu ölçümler:** (a) short emirlerinin gerçek ETB/HTB, locate ve SSR reddi oranları; (b) 09:37'de canlı hesaplanan RelVol ile sonradan indirilen tarihsel barlardan hesaplanan RelVol farkı (veri revizyonu riskinin ölçümü); (c) gerçek ve modellenen kayma farkı.
+- **Paper aşamasında zorunlu ölçümler:** (a) emir reddi ve kısmi dolum oranları; (b) 09:37'de canlı hesaplanan RelVol ile sonradan indirilen tarihsel barlardan hesaplanan RelVol farkı (veri revizyonu riskinin ölçümü); (c) gerçek ve modellenen kayma farkı.
 - **Para transferi:** Türkiye'den SWIFT havale ücreti → seyrek ve toplu yatırım.
 - **Emir:** 20 hisseye eşzamanlı emir elle girilemez → Alpaca API ile otomatik; Burak günlük "başlat/durdur" kararını verir.
 
@@ -143,7 +147,7 @@ Günlük getiri ortalamasının %95 güven aralığı raporlanır (kapı değil)
 **Sınırlar:**
 - Evren Alpaca'da erişilebilen sembollerle sınırlı; D5/D6 eşlemesi kusursuz değildir.
 - **Veri revizyonu:** Tarihsel barlar sonradan raporlanan işlemlerle güncellenmiş olabilir; 09:37'deki veri sürümü doğrulanamaz. 2 dk gecikme bunu kapatmaz, K11-B tavanı düzeltmez. **V0'dan geçmek "lookahead sıfır" anlamına gelmez;** bu kalan risk kabul durumunda yazılıdır ve paper aşamasında ölçülür (§10).
-- Tarihsel ödünç verisi yok (K14); short sonuçları iyimser olabilir. Long ve short bacakları ayrı raporlanır (betimleyici).
+- Yalnız long (§3.1): sonuç makalenin tam replikasyonu değildir.
 - 1dk bar içi sıra bilinmez (§4.1 muhafazakâr kural).
 
 **Eleme:**
@@ -192,4 +196,15 @@ Proje genelinde 6. strateji ailesi (V1, V2, Plan B, V3, Sepet momentum, V-ORB). 
 | §7 | Kapasite örneği azaltmayı sınamıyordu | 105 (azaltma yok) ve 120 (909 → 832) örnekleri |
 | §8 | İşlem tahmini sermaye kısıtını atlıyordu; G6 "bağlayıcı değil" desteklenmiyor | Sermaye kısıtlı tahmin (≈ 1.200–5.600 işlem); G6 bağlayıcı olabilir |
 | Gerileme | Veri gideri sonrası net rapor kaybolmuştu | §4.1 işletme gideri satırı geri kondu |
+
+### 12.4 ChatGPT 4. denetim (v0.4 → v0.5)
+| # | Bulgu | Karşılık |
+|---|---|---|
+| P1-1 | 5dk ile tamamlama stop'u ve kayıp büyüklüğünü gizleyebiliyor; iki kaynak boşken "işlem yok" kabulü | §4.2 tümüyle değişti: tahminle tamamlama yok; pencere (Σ1dk = 5dk) ve gün (Σ1dk = günlük) hacim mutabakatı; etkin emir/pozisyonu etkileyen tek mutabakatsızlık V0 KALDI (V5); başarısızlıkta veri yöntemi v2 |
+| P1-2 | SSR sıralaması fiyatın sürekli hareketini varsayıyor | Short bacağı kaldırıldı (K7, §3.1); K13–K14 silindi. SSR ve ödünç belirsizliği tümden ortadan kalktı |
+| P1-3 | V4 ilk 20 içi sıra değişikliğini kaçırıyor | V4: A ve B hacimleriyle iki seçim zinciri; kabul listesi veya adet farkı tek olayda KALDI |
+| Metin | Tasfiye uzantısı ile §9 dışlama çelişkisi | §4.3/6 tasfiye uzantısı tanımı (yeni emir yok, seriye dahil, V0 kapsamı) + §9 metni |
+| Metin | 10/14 kuralı D7 ve K5'te yok | D7 ve K5 güncellendi; K6 eşitlik kuralı |
+| §8 | "2–4 emir" ölçüm değil | Tahmin olarak etiketlendi |
+| Not | §12.1–12.3'teki K13/K14 atıfları tarihsel kayıttır; v0.5'te bu kurallar yoktur. | — |
 
