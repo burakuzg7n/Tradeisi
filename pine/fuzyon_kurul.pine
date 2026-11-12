@@ -1,0 +1,107 @@
+//@version=5
+// Füzyon — Ajan Kurulu + Kanal Kırılımı göstergesi
+// fusion/stratejiler/kurul.py ve kirilim.py ile aynı kurallar. Emir GÖNDERMEZ; yalnız işaret ve alarm üretir.
+// Not: ilk barlardaki EMA/ATR başlangıç farkı yüzünden Python ile küçük sapmalar olabilir.
+indicator("Füzyon — Kurul + Kırılım", shorttitle="Füzyon", overlay=true, max_labels_count=500)
+
+girisEsik = input.float(0.40, "Kurul giriş eşiği", step=0.05, minval=0.05, maxval=1.0)
+cikisEsik = input.float(0.05, "Kurul çıkış eşiği", step=0.05, minval=0.0, maxval=1.0)
+stopAtr   = input.float(2.0, "Stop (ATR katı)", step=0.5, minval=0.5)
+karAtr    = input.float(3.0, "Hedef (ATR katı)", step=0.5, minval=0.5)
+donN      = input.int(20, "Kırılım kanalı (bar)", minval=5)
+btcSym    = input.symbol("BINANCE:BTCUSDT", "Piyasa rejimi sembolü")
+kanalGoster = input.bool(true, "Kırılım kanalını çiz")
+tabloGoster = input.bool(true, "Kurul puan tablosunu göster")
+
+sinirla(x, lo, hi) => math.max(lo, math.min(hi, x))
+
+atr  = ta.atr(14)
+e20  = ta.ema(close, 20)
+e50  = ta.ema(close, 50)
+e200 = ta.ema(close, 200)
+
+// --- Analistler (her biri -1..+1) ---
+trend    = 0.5 * sinirla((e20 - e50) / atr, -1, 1) + 0.5 * math.sign(close - e200)
+momentum = sinirla((ta.rsi(close, 14) - 50) / 25, -1, 1)
+hacimStd = ta.stdev(volume, 96)
+hacimZ   = hacimStd > 0 ? (volume - ta.sma(volume, 96)) / hacimStd : 0.0
+hacim    = sinirla(hacimZ / 2, 0, 1) * math.sign(close - open)
+[b50, b200] = request.security(btcSym, timeframe.period, [ta.ema(close, 50), ta.ema(close, 200)])
+piyasa   = b50 > b200 ? 0.6 : -0.6
+
+// --- Trader + risk yöneticisi ---
+net     = 0.35 * trend + 0.25 * momentum + 0.15 * hacim + 0.25 * piyasa
+oyn     = atr / close
+oynOran = oyn / ta.median(oyn, 672)
+riskOk  = oynOran < 2.5
+
+var int poz = 0
+int onceki = poz
+bool longSart  = net > girisEsik and riskOk
+bool shortSart = net < -girisEsik and riskOk
+if barstate.isconfirmed and not na(net) and not na(oynOran)
+    if poz == 0
+        poz := longSart ? 1 : shortSart ? -1 : 0
+    else if poz > 0
+        poz := shortSart ? -1 : net < cikisEsik ? 0 : 1
+    else
+        poz := longSart ? 1 : net > -cikisEsik ? 0 : -1
+
+kurulLong  = poz == 1 and onceki != 1
+kurulShort = poz == -1 and onceki != -1
+kurulCikis = poz == 0 and onceki != 0
+
+// --- Kanal kırılımı ---
+ust = ta.highest(high, donN)[1]
+alt = ta.lowest(low, donN)[1]
+kirilimLong  = barstate.isconfirmed and close > ust and close[1] <= ust[1]
+kirilimShort = barstate.isconfirmed and close < alt and close[1] >= alt[1]
+
+plot(kanalGoster ? ust : na, "Kanal üst", color=color.new(color.teal, 55))
+plot(kanalGoster ? alt : na, "Kanal alt", color=color.new(color.red, 55))
+plot(e200, "EMA 200", color=color.new(color.gray, 40))
+
+plotshape(kurulLong,  "Kurul AL",    shape.labelup,   location.belowbar, color.new(color.teal, 0), text="KURUL AL",  textcolor=color.white, size=size.small)
+plotshape(kurulShort, "Kurul SAT",   shape.labeldown, location.abovebar, color.new(color.red, 0),  text="KURUL SAT", textcolor=color.white, size=size.small)
+plotshape(kurulCikis, "Kurul çıkış", shape.xcross,    location.abovebar, color.new(color.orange, 0), size=size.tiny)
+plotshape(kirilimLong,  "Kırılım yukarı", shape.triangleup,   location.belowbar, color.new(color.teal, 30), size=size.tiny)
+plotshape(kirilimShort, "Kırılım aşağı",  shape.triangledown, location.abovebar, color.new(color.red, 30),  size=size.tiny)
+
+// Sinyal barında önerilen stop / hedef seviyeleri
+var float stopSeviye = na
+var float karSeviye  = na
+if kurulLong
+    stopSeviye := close - stopAtr * atr
+    karSeviye  := close + karAtr * atr
+if kurulShort
+    stopSeviye := close + stopAtr * atr
+    karSeviye  := close - karAtr * atr
+if poz == 0
+    stopSeviye := na
+    karSeviye  := na
+plot(stopSeviye, "Stop",  color=color.new(color.red, 20),  style=plot.style_linebr)
+plot(karSeviye,  "Hedef", color=color.new(color.teal, 20), style=plot.style_linebr)
+
+if tabloGoster and barstate.islast
+    var table t = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 70), border_width=1)
+    renk(v) => v > 0.05 ? color.teal : v < -0.05 ? color.red : color.gray
+    table.cell(t, 0, 0, "Füzyon kurulu", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 0, poz == 1 ? "LONG" : poz == -1 ? "SHORT" : "BEKLE", text_color=color.white, text_size=size.small)
+    table.cell(t, 0, 1, "Trend", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(trend, "#.##"), text_color=renk(trend), text_size=size.small)
+    table.cell(t, 0, 2, "Momentum", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(momentum, "#.##"), text_color=renk(momentum), text_size=size.small)
+    table.cell(t, 0, 3, "Hacim", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(hacim, "#.##"), text_color=renk(hacim), text_size=size.small)
+    table.cell(t, 0, 4, "BTC rejimi", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(piyasa, "#.##"), text_color=renk(piyasa), text_size=size.small)
+    table.cell(t, 0, 5, "Net", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(net, "#.##"), text_color=renk(net), text_size=size.small)
+    table.cell(t, 0, 6, "Oynaklık", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 6, "×" + str.tostring(oynOran, "#.#"), text_color=riskOk ? color.white : color.red, text_size=size.small)
+
+alertcondition(kurulLong,  "Füzyon: Kurul AL",    "Füzyon kurulu AL — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(kurulShort, "Füzyon: Kurul SAT",   "Füzyon kurulu SAT — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(kurulCikis, "Füzyon: Kurul çıkış", "Füzyon kurulu ÇIKIŞ — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(kirilimLong,  "Füzyon: Kırılım yukarı", "Kanal kırılımı YUKARI — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(kirilimShort, "Füzyon: Kırılım aşağı",  "Kanal kırılımı AŞAĞI — {{ticker}} {{interval}} @ {{close}}")

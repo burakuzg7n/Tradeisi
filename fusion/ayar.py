@@ -10,7 +10,8 @@ VARSAYILAN = {
     "semboller": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"],
     "aralik": "15m",
     "gecmis_gun": 730,          # indirilecek gecmis (isinma + Q-ajan egitimi)
-    "backtest_gun": 365,        # backtest'in degerlendirdigi son gun sayisi
+    "backtest_gun": 365,
+    "canli_geri_gun": 7,        # canli kagit islem ilk acilista kac gun geriden oynatilarak baslar        # backtest'in degerlendirdigi son gun sayisi
     "baslangic_sermaye": 1000.0,  # her stratejinin kagit hesabi (USDT)
     "risk_yuzde": 1.0,          # stoplu islemlerde islem basi risk (ozsermaye %)
     "poz_tavan": 1.0,           # tek pozisyonun en buyuk nominali (ozsermaye kati)

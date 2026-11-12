@@ -1,0 +1,100 @@
+"""Canli kagit islem dongusu.
+
+Her yeni kapanan mumda: veriyi tamamla -> baslangic anindan bugune TUM barlari ayni motorla
+yeniden oynat -> yeni sinyalleri ilet -> panel dosyasini yaz. Durum yalniz iki sayidir
+(baslangic zamani, son iletilen sinyal zamani); program kapanip acilsa da ayni sonucu uretir.
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+
+from . import durum, iletim, stratejiler, veri
+from .ayar import cikti_klasoru
+from .motor import Motor
+
+
+def _kayit_yolu(a: dict) -> str:
+    return os.path.join(cikti_klasoru(a), "canli.json")
+
+
+def kayit_oku(a: dict) -> dict:
+    try:
+        with open(_kayit_yolu(a), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def kayit_yaz(a: dict, k: dict) -> None:
+    gecici = _kayit_yolu(a) + ".tmp"
+    with open(gecici, "w", encoding="utf-8") as f:
+        json.dump(k, f)
+    os.replace(gecici, _kayit_yolu(a))
+
+
+def tur(a: dict, simdi_ms: int | None = None, indir: bool = True, piyasa=None, sessiz: bool = False):
+    """Tek dongu adimi. (durum_sozlugu, iletilen_sinyal_sayisi) dondurur."""
+    simdi_ms = simdi_ms or int(time.time() * 1000)
+    uyari = ""
+    if piyasa is None:
+        if indir:
+            for s in a["semboller"]:
+                try:
+                    veri.guncelle(s, a["aralik"], a["gecmis_gun"])
+                except ConnectionError as e:
+                    uyari = f"Veri güncellenemedi, eldeki veriyle devam: {e}"
+                    if not sessiz:
+                        print("  UYARI: " + uyari)
+                    break
+        piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"])
+    k = kayit_oku(a)
+    if "baslangic_ts" not in k:
+        k = {"baslangic_ts": int(piyasa.T[-1]) - int(a["canli_geri_gun"]) * 86_400_000,
+             "son_iletilen_ts": int(piyasa.T[-1]) + piyasa.adim_ms, "ilk_acilis": simdi_ms}
+        kayit_yaz(a, k)
+    sonuc = Motor(piyasa, stratejiler.hepsi(a), a).kos(piyasa.k_bul(k["baslangic_ts"]))
+    d = durum.olustur(sonuc, "canli", uyari)
+    lider = d["tablo"][0]["ad"] if d["tablo"] else None
+    taze = simdi_ms - 2 * piyasa.adim_ms        # kesinti sonrasi eski sinyalleri yagdirma
+    yeni = [o for o in sonuc.olaylar if o["ts"] > k["son_iletilen_ts"]]
+    gonder = [o for o in iletim.sec(yeni, a.get("takip"), lider) if o["ts"] >= taze]
+    n = iletim.ilet(gonder, a, sessiz)
+    if yeni:
+        k["son_iletilen_ts"] = max(o["ts"] for o in yeni)
+        kayit_yaz(a, k)
+    durum.yaz(d, a, "canli")
+    return d, n
+
+
+def sifirla(a: dict) -> None:
+    for ad in ("canli.json", "durum_canli.json"):
+        yol = os.path.join(cikti_klasoru(a), ad)
+        if os.path.exists(yol):
+            os.replace(yol, yol + ".eski")
+
+
+def dongu(a: dict, bir_kez: bool = False) -> None:
+    adim = veri.ARALIK_MS[a["aralik"]]
+    print(f"Canlı KÂĞIT işlem başladı ({a['aralik']}, {len(a['semboller'])} sembol). "
+          f"Gerçek emir gönderilmez. Durdurmak için Ctrl+C.")
+    while True:
+        try:
+            d, n = tur(a)
+            en = d["tablo"][0] if d["tablo"] else None
+            print(time.strftime("%H:%M:%S") + f"  {d['bar_sayisi']} bar oynatıldı, {n} yeni sinyal"
+                  + (f", lider: {en['ad']} ({en['ozsermaye']:.2f})" if en else ""))
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print(time.strftime("%H:%M:%S") + f"  HATA: {type(e).__name__}: {e} — 60 sn sonra yeniden denenecek")
+            if bir_kez:
+                raise
+            time.sleep(60)
+            continue
+        if bir_kez:
+            return
+        simdi = time.time() * 1000
+        sonraki = (int(simdi) // adim + 1) * adim + 8000
+        time.sleep(max(5.0, (sonraki - simdi) / 1000.0))

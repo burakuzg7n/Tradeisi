@@ -165,7 +165,7 @@ def guncelle(sembol: str, aralik: str, gecmis_gun: int, klasor: str | None = Non
 
 
 def sentetik(sembol: str, n: int = 6000, aralik: str = "15m", tohum: int = 7,
-             bas_ts: int = 1_700_000_000_000) -> Bars:
+             bas_ts: int = 1_699_999_200_000) -> Bars:
     """Internetsiz deneme/test icin rejim degistiren rastgele yuruyus."""
     r = np.random.default_rng(zlib.crc32(sembol.encode()) % 9973 + tohum * 100_003)
     adim = ARALIK_MS[aralik]
