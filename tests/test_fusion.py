@@ -514,6 +514,9 @@ def test_araliga_gore_on_ayarlar(tmp_path, monkeypatch):
     assert c["aralik"] == "15m" and c["backtest_gun"] == 7 and c["risk_yuzde"] == 0.5 and c["gecmis_gun"] == 500
     with pytest.raises(ValueError):
         ayar_m.aralik_kaydet("7m")
+    # eski surumun tam ornek dosyasi (gun ayarlari varsayilan degerde) on ayarlari kilitlememeli
+    json.dump(dict(ayar_m.VARSAYILAN, aralik="1m"), open(tmp_path / "fuzyon_ayar.json", "w"))
+    assert ayar_m.yukle()["gecmis_gun"] == 30
 
 
 def test_aralik_komutu(tmp_path, monkeypatch, capsys):

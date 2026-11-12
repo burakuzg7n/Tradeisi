@@ -78,7 +78,10 @@ def yukle(ustune: dict | None = None) -> dict:
             with open(yol, encoding="utf-8-sig") as f:
                 kullanici = json.load(f)
             a.update({k: v for k, v in kullanici.items() if k in VARSAYILAN})
-            a["_sabit"] = [k for k in ARALIGA_BAGLI if k in kullanici]
+            # Elle yazilmis sayilmasi icin varsayilandan FARKLI olmali (eski surumun urettigi
+            # ornek dosya bu anahtarlari varsayilan degerleriyle iceriyordu).
+            a["_sabit"] = [k for k in ARALIGA_BAGLI
+                           if k in kullanici and kullanici[k] != VARSAYILAN[k]]
         except (OSError, ValueError) as e:
             print(f"UYARI: fuzyon_ayar.json okunamadi ({e}); varsayilanlar kullaniliyor.")
     try:

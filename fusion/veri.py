@@ -265,6 +265,7 @@ def guncelle(sembol: str, aralik: str, gecmis_gun: int, klasor: str | None = Non
         bas = int(eski.ts[-1]) + adim
     else:
         bas = (simdi - gecmis_gun * 86_400_000) // adim * adim
+        bas = max(bas, (simdi // adim - MAX_ILK_INDIRME) * adim)     # yanlis ayara karsi sinir
     if bas + adim > simdi:
         return eski
     yeni = binance_mumlar(sembol, aralik, bas, ilerleme=ilerleme)
@@ -379,6 +380,7 @@ class Piyasa:
         return out
 
 
+MAX_ILK_INDIRME = 120_000   # bir sembol icin ilk indirmede en fazla mum
 ISINMA_BAR = 22_000   # degerlendirme baslangicindan once tutulan bar (Q-ajan egitimi + gostergeler)
 
 
