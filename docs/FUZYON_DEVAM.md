@@ -24,8 +24,8 @@ Yeni oturum ÖNCE bu dosyayı okur, "Adımlar" listesinde ilk işaretsiz maddede
 
 ## Adımlar
 - [x] 1. Repolar incelendi, tasarım ve bu not yazıldı
-- [ ] 2. Çekirdek: `gostergeler.py`, `veri.py`, `motor.py`, `olcum.py`
-- [ ] 3. Stratejiler: kırılım, ortalamaya dönüş, rotasyon, kural, kurul, Q-ajan, füzyon oylaması
+- [x] 2. Çekirdek: `gostergeler.py`, `veri.py`, `motor.py`, `olcum.py`
+- [x] 3. Stratejiler: kırılım, ortalamaya dönüş, rotasyon, kural, kurul, Q-ajan, füzyon oylaması
 - [ ] 4. `iletim.py`, `panel.py`, `cli.py`, `Fuzyon.bat`, `pine/fuzyon_kurul.pine`
 - [ ] 5. Testler (`tests/test_fusion_*.py`) + Burak'ın makinesindeki gerçek veriyle çalıştırma kontrolü
 - [ ] 6. `docs/FUZYON.md`, AGENTS.md rol güncellemesi, push + PR
