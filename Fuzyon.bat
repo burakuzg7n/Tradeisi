@@ -10,6 +10,8 @@ echo            FUZYON ARENA - KAGIT ISLEM (gercek emir yok)
 echo ============================================================
 python -m fusion aralik
 echo.
+echo   S) SERVISI BASLAT - onerilen: penceresiz, tum araliklar, her sey panelden
+echo.
 echo   1) Kurulum (bir kerelik)
 echo   2) Veri indir / guncelle (Binance, anahtar gerekmez)
 echo   3) Backtest + panel
@@ -23,8 +25,9 @@ echo.
 echo   0) Cikis
 echo.
 set "choice="
-set /p choice="Seciminiz (0-9): "
+set /p choice="Seciminiz (S, 0-9): "
 
+if /i "%choice%"=="S" (wscript.exe "%~dp0Fuzyon.vbs" & exit /b 0)
 if "%choice%"=="1" (python -m pip install numpy & python -m fusion kontrol & pause)
 if "%choice%"=="2" (python -m fusion veri & pause)
 if "%choice%"=="3" (python -m fusion backtest --panel & pause)

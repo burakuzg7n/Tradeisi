@@ -1,5 +1,8 @@
 """Komut satiri:  python -m fusion <komut>
 
+  servis     ONERILEN: tum zaman dilimlerini arka planda calistirir, her sey panelden yonetilir
+             (Fuzyon.vbs bunu penceresiz baslatir)                       [--sessiz]
+  bulut      Tek seferlik tur (zamanlanmis bulut isi icin): python -m fusion bulut --araliklar 4h,1h
   kontrol    Kurulum ve veri durumu
   veri       Binance'ten mum verisini indir / tamamla (anahtar gerekmez)   [--aralik 1h]
   backtest   Son N gunu tum stratejilerle oynat, tabloyu yaz   [--gun N] [--aralik 1h] [--panel]
@@ -164,6 +167,52 @@ def k_aralik(a, args) -> int:
     return 0
 
 
+def k_servis(a, args) -> int:
+    from . import servis
+    return servis.baslat(a, tarayici=not args.sessiz)
+
+
+def k_bulut(a, args) -> int:
+    """Zamanlanmis is (GitHub Actions vb.) icin: her aralikta TEK tur atar, sinyalleri iletir,
+    Telegram'dan gelen komutlari yanitlar ve cikar. Durum dosyalari bir sonraki calismaya tasinmalidir."""
+    from . import iletim, servis
+    araliklar = [x.strip() for x in args.araliklar.split(",") if x.strip()]
+    hata = 0
+    for ar in araliklar:
+        b = dict(a)
+        try:
+            ayar_m.aralik_uygula(b, ar)
+            t0 = time.time()
+            d, n = canli.tur(b, sessiz=True)
+            en = d["tablo"][0] if d["tablo"] else None
+            print(f"{ar}: {d['bar_sayisi']} mum, {n} yeni sinyal, son mum {durum._zaman(d['son_ts'])}"
+                  + (f", lider {en['ad']} ({en['ozsermaye']:.2f})" if en else "")
+                  + (f" | UYARI: {d['not']}" if d["not"] else "") + f"  [{time.time() - t0:.1f} sn]")
+        except Exception as e:
+            hata += 1
+            print(f"{ar}: HATA — {type(e).__name__}: {e}")
+    token, chat = iletim.telegram_ayari()
+    if token and chat:
+        s = servis.Servis(a)
+        yol = os.path.join(ayar_m.cikti_kok(a), "bulut.json")
+        try:
+            with open(yol, encoding="utf-8") as f:
+                ofset = json.load(f).get("ofset")
+        except (OSError, ValueError):
+            ofset = None
+        try:
+            for g in iletim.tg(token, "getUpdates", timeout=0, offset=ofset):
+                ofset = g["update_id"] + 1
+                s.telegram_guncelleme(g)
+            with open(yol, "w", encoding="utf-8") as f:
+                json.dump({"ofset": ofset}, f)
+        except RuntimeError as e:
+            print(f"Telegram komutları okunamadı: {e}")
+    else:
+        print("Telegram ayarlı değil (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID): sinyaller yalnız dosyaya yazıldı.")
+    return 1 if araliklar and hata == len(araliklar) else 0
+
+
 def k_ayar(a, args) -> int:
     print(f"Ayar dosyası: {ayar_m.ornek_yaz()} (Not Defteri ile düzenleyebilirsiniz)")
     return 0
@@ -178,6 +227,10 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="python -m fusion", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     alt = p.add_subparsers(dest="komut")
+    sv = alt.add_parser("servis")
+    sv.add_argument("--sessiz", action="store_true", help="tarayiciyi acma")
+    bl = alt.add_parser("bulut")
+    bl.add_argument("--araliklar", default="4h,1h")
     alt.add_parser("kontrol")
     v = alt.add_parser("veri")
     v.add_argument("--aralik", choices=sorted(veri.ARALIK_MS), default=None)
@@ -212,6 +265,8 @@ def main(argv=None) -> int:
     a = ayar_m.yukle()
     if getattr(args, "aralik", None):
         ayar_m.aralik_uygula(a, args.aralik)
+    for satir in ayar_m.eski_duzeni_tasi(a):
+        print(f"Eski çıktı taşındı: {satir}")
     try:
         return globals()["k_" + args.komut](a, args)
     except ValueError as e:

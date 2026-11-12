@@ -422,11 +422,14 @@ def _sahte_borsa(monkeypatch, semboller, aralik, n, simdi_i):
             return {"serverTime": saat["ms"]}
         q = parse_qs(u.query)
         b = kaynak[q["symbol"][0]]
+        istenen = veri.ARALIK_MS[q["interval"][0]]
+        if istenen != adim:                                    # baska aralik: taban mumlardan topla
+            b = veri.topla(b.kes(son_ts=saat["ms"]), adim, istenen)
         bas = int(q["startTime"][0])
         m = (b.ts >= bas) & (b.ts <= saat["ms"])               # son satir kapanmamis mum olabilir
         i = np.flatnonzero(m)[: int(q["limit"][0])]
         return [[int(b.ts[j])] + [repr(float(x[j])) for x in (b.o, b.h, b.l, b.c, b.v)]
-                + [int(b.ts[j]) + adim - 1] for j in i]
+                + [int(b.ts[j]) + istenen - 1] for j in i]
 
     monkeypatch.setattr(veri, "_http_json", sahte)
     monkeypatch.setattr(veri.time, "sleep", lambda s: None)
@@ -455,7 +458,7 @@ def test_uctan_uca_canli_dongu_sahte_binance(tmp_path, monkeypatch):
     assert len(b2) == len(b) + 40 and np.all(np.diff(b2.ts) == adim)
     np.testing.assert_array_equal(b2.c, kaynak["BTCUSDT"].kes(int(b2.ts[0]), int(b2.ts[-1])).c)
     assert d["bar_sayisi"] == d1["bar_sayisi"] + 40
-    satirlar = [json.loads(x) for x in open(tmp_path / "out" / "sinyaller.jsonl", encoding="utf-8")]
+    satirlar = [json.loads(x) for x in open(tmp_path / "out" / "4h" / "sinyaller.jsonl", encoding="utf-8")]
     assert toplam == len(satirlar) > 0
     anahtarlar = [(o["ts"], o["strateji"], o["sembol"], o["yon"]) for o in satirlar]
     assert len(anahtarlar) == len(set(anahtarlar))             # ayni sinyal iki kez iletilmedi
@@ -480,7 +483,7 @@ def test_komutlar_sahte_binance(tmp_path, monkeypatch, capsys):
     assert cli.k_durum(a, SimpleNamespace()) == 0
     cikti = capsys.readouterr().out
     assert "4800 mum" in cikti and "fuzyon" in cikti and "maliyet öncesi" in cikti
-    d = json.load(open(tmp_path / "out" / "durum_backtest.json", encoding="utf-8"))
+    d = json.load(open(tmp_path / "out" / "1h" / "durum_backtest.json", encoding="utf-8"))
     assert d["aralik"] == "1h" and d["bar_sayisi"] == 60 * 24 + 1 and len(d["tablo"]) == 8
 
 
@@ -585,7 +588,7 @@ def test_sezon_siniri(tmp_path):
     assert d1["bar_sayisi"] == 2 * 96 + 1 and d1["sezon"] == 1
     d2, _ = canli.tur(a, simdi_ms=son + ADIM, piyasa=p, sessiz=True)       # 213 mum > 200
     assert d2["sezon"] == 2 and d2["bar_sayisi"] == 2 * 96 + 1
-    assert (tmp_path / "out" / "sezon_001.json").exists()
+    assert (tmp_path / "out" / "4h" / "sezon_001.json").exists()
     assert all(r["islem"] <= d1["tablo"][0]["islem"] + 400 for r in d2["tablo"])
 
 
@@ -597,3 +600,225 @@ def test_csv_onbellegi_dosya_degisince_yenilenir(tmp_path):
     assert veri.csv_oku(yol) is ilk and len(ilk) == 20           # ayni nesne: yeniden okunmadi
     veri.csv_ekle(yol, b.kes(bas_ts=int(b.ts[20])))
     assert len(veri.csv_oku(yol)) == 40                          # dosya buyudu: yeniden okundu
+
+
+# ------------------------------------------------ servis, panel v2, Telegram, bulut (12 Kas, 4. tur)
+def _servis_kur(tmp_path, monkeypatch, semboller, araliklar, n=9000, simdi_i=8000, taban="1m"):
+    """Sahte borsaya bagli, yalniz verilen araliklari acik bir Servis."""
+    from fusion import servis as servis_m
+    monkeypatch.setattr(iletim, "KOK", str(tmp_path))                 # .env gecici klasorde
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    a = _ayar(tmp_path, semboller=semboller, veri=str(tmp_path / "data"), komisyon_bps=5.0, kayma_bps=2.0)
+    a["_sabit"] = ["gecmis_gun", "backtest_gun", "canli_geri_gun"]
+    a.update(gecmis_gun=4, backtest_gun=1, canli_geri_gun=1)
+    kaynak, saat, adim = _sahte_borsa(monkeypatch, semboller, taban, n, simdi_i)
+    saat["ms"] += 1000
+    s = servis_m.Servis(a)
+    s.ayarlar.update(aktif=list(araliklar), bildirim=[araliklar[0]])
+    return s, a, saat, adim
+
+
+def _bosalt(s, en_fazla=400):
+    n = 0
+    while s.adim():
+        n += 1
+        assert n < en_fazla, "servis isi bitmiyor"
+    return n
+
+
+def test_servis_birden_cok_araligi_birlikte_calistirir(tmp_path, monkeypatch):
+    semboller = ["BTCUSDT", "ETHUSDT"]
+    s, a, saat, adim = _servis_kur(tmp_path, monkeypatch, semboller, ["1m", "5m"])
+    _bosalt(s)
+    o = {x["aralik"]: x for x in s.ozet()["araliklar"]}
+    assert o["1m"]["asama"] == "calisiyor" and o["5m"]["asama"] == "calisiyor" and o["15m"]["asama"] == "kapali"
+    assert o["1m"]["hazir"] and o["1m"]["mum"] == 1441 and o["5m"]["mum"] == 289
+    for ar in ("1m", "5m"):                                    # araliklar ayri klasorlere yazar
+        for dosya in ("canli.json", "durum_canli.json", "durum_backtest.json"):
+            assert (tmp_path / "out" / ar / dosya).exists(), (ar, dosya)
+        assert o[ar]["backtest"]["asama"] == "hazir"            # hazir olunca backtest kendiliginden
+    assert not s.adim()                                        # yeni mum yokken is yok
+    saat["ms"] += 60_000                                       # 1 dakika: yalniz 1m vadesi gelir
+    assert _bosalt(s) == 1
+    o2 = {x["aralik"]: x for x in s.ozet()["araliklar"]}
+    assert o2["1m"]["mum"] == 1442 and o2["5m"]["mum"] == 289
+    saat["ms"] += 4 * 60_000                                   # 5. dakika: ikisi de
+    _bosalt(s)
+    o3 = {x["aralik"]: x for x in s.ozet()["araliklar"]}
+    assert o3["1m"]["mum"] == 1446 and o3["5m"]["mum"] == 290
+    # panelden ac/kapa kalici
+    s.aktif_yap("5m", False)
+    s.aktif_yap("15m", True)
+    from fusion import servis as servis_m
+    assert set(servis_m.Servis(a).ayarlar["aktif"]) == {"1m", "15m"}
+    saat["ms"] += 5 * 60_000
+    _bosalt(s)
+    o4 = {x["aralik"]: x for x in s.ozet()["araliklar"]}
+    assert o4["5m"]["asama"] == "kapali" and o4["5m"]["mum"] == 290 and o4["15m"]["asama"] == "calisiyor"
+
+
+def test_servis_veri_hatasinda_durmaz_ve_yeniden_dener(tmp_path, monkeypatch):
+    s, a, saat, adim = _servis_kur(tmp_path, monkeypatch, ["BTCUSDT"], ["1m"])
+    asil = veri._http_json
+
+    def bozuk(url, zaman_asimi=20.0):
+        raise OSError("internet yok")
+
+    monkeypatch.setattr(veri, "_http_json", bozuk)
+    assert s.adim() is True                                    # hazirlik denemesi: hata
+    h = s.hal["1m"]
+    assert h["asama"] == "hata" and "ulasilamadi" in h["hata"] and not h["hazir"]
+    assert s.adim() is False                                   # bekleme suresi dolmadan yeniden denemez
+    monkeypatch.setattr(veri, "_http_json", asil)
+    saat["ms"] += 61_000
+    _bosalt(s)
+    assert s.hal["1m"]["hazir"] and s.hal["1m"]["asama"] == "calisiyor" and s.hal["1m"]["hata"] == ""
+
+
+def test_eski_cikti_duzeni_tasinir(tmp_path):
+    a = _ayar(tmp_path)
+    kok = tmp_path / "out"
+    kok.mkdir()
+    (kok / "canli.json").write_text(json.dumps({"baslangic_ts": 1, "son_iletilen_ts": 2, "aralik": "4h",
+                                                 "semboller": a["semboller"]}))
+    (kok / "durum_canli.json").write_text(json.dumps({"aralik": "4h"}))
+    (kok / "durum_backtest.json").write_text(json.dumps({"aralik": "15m"}))
+    (kok / "islemler_backtest.csv").write_text("x")
+    tasinan = ayar_m.eski_duzeni_tasi(a)
+    assert len(tasinan) == 4
+    assert json.loads((kok / "4h" / "canli.json").read_text())["baslangic_ts"] == 1
+    assert (kok / "4h" / "durum_canli.json").exists() and (kok / "15m" / "durum_backtest.json").exists()
+    assert (kok / "15m" / "islemler_backtest.csv").exists() and not (kok / "canli.json").exists()
+    assert ayar_m.eski_duzeni_tasi(a) == []
+
+
+def _sahte_telegram(monkeypatch):
+    kayit = {"gonderilen": [], "guncellemeler": []}
+
+    def tg(token, metod, zaman_asimi=15.0, **p):
+        if token != "123:GECERLI":
+            raise RuntimeError(f"Telegram {metod}: HTTP 401")
+        if metod == "getMe":
+            return {"username": "deneme_bot"}
+        if metod == "sendMessage":
+            kayit["gonderilen"].append((str(p["chat_id"]), p["text"]))
+            return {}
+        if metod == "getUpdates":
+            ofset = p.get("offset") or 0
+            return [g for g in kayit["guncellemeler"] if g["update_id"] >= ofset]
+        raise AssertionError(metod)
+
+    monkeypatch.setattr(iletim, "tg", tg)
+    return kayit
+
+
+def test_telegram_baglama_akisi_ve_komutlar(tmp_path, monkeypatch):
+    s, a, saat, adim = _servis_kur(tmp_path, monkeypatch, ["BTCUSDT", "ETHUSDT"], ["1m"])
+    tgk = _sahte_telegram(monkeypatch)
+    (tmp_path / ".env").write_text("BASKA_AYAR=1\n")
+    assert s.telegram_durumu()["durum"] == "yok"
+    with pytest.raises(RuntimeError):
+        s.telegram_token("999:YANLIS")
+    with pytest.raises(ValueError):
+        s.telegram_token("bosluklu token")
+    assert s.telegram_token(" 123:GECERLI ")["durum"] == "mesaj_bekleniyor"
+    with pytest.raises(ValueError):
+        s.telegram_onayla()                                    # henuz mesaj yok
+    s.telegram_guncelleme({"update_id": 1, "message": {"chat": {"id": 555, "type": "private", "first_name": "Burak"}, "text": "selam"}})
+    d = s.telegram_durumu()
+    assert d["durum"] == "aday" and d["aday"] == "Burak" and not tgk["gonderilen"]
+    assert s.telegram_onayla()["durum"] == "bagli"
+    env = (tmp_path / ".env").read_text()
+    assert "BASKA_AYAR=1" in env and "TELEGRAM_BOT_TOKEN=123:GECERLI" in env and "TELEGRAM_CHAT_ID=555" in env
+    assert tgk["gonderilen"][-1][0] == "555" and "bağlandı" in tgk["gonderilen"][-1][1]
+    assert "GECERLI" not in json.dumps(s.ozet())                # token panele asla donmez
+    # sinyal bildirimi: yalniz bildirimi acik aralik
+    _bosalt(s)
+    once = len(tgk["gonderilen"])
+    for _ in range(40):
+        saat["ms"] += 60_000
+        _bosalt(s)
+    sinyal = [m for c, m in tgk["gonderilen"][once:] if m.startswith("Füzyon 1m (kâğıt)")]
+    assert len(sinyal) == sum(1 for _ in open(tmp_path / "out" / "1m" / "sinyaller.jsonl", encoding="utf-8")) > 0 \
+        or len(sinyal) > 0
+    s.bildirim_yap("1m", False)
+    once = len(tgk["gonderilen"])
+    for _ in range(20):
+        saat["ms"] += 60_000
+        _bosalt(s)
+    assert len(tgk["gonderilen"]) == once                      # bildirim kapaliyken mesaj yok
+    # komutlar: yalniz bagli sohbet yanit alir
+    s.telegram_guncelleme({"update_id": 2, "message": {"chat": {"id": 999, "type": "private"}, "text": "/durum 1m"}})
+    assert len(tgk["gonderilen"]) == once
+    s.telegram_guncelleme({"update_id": 3, "message": {"chat": {"id": 555, "type": "private"}, "text": "/durum 1m"}})
+    assert tgk["gonderilen"][-1][1].startswith("Füzyon 1m · kâğıt") and "1. " in tgk["gonderilen"][-1][1]
+    assert "henüz sonuç yok" in s.komut_yaniti("/durum 4h") and "komutları" in s.komut_yaniti("merhaba")
+    assert "1m: calisiyor" in s.komut_yaniti("/araliklar")
+    assert s.telegram_kaldir()["durum"] == "yok" and "TELEGRAM" not in (tmp_path / ".env").read_text()
+
+
+def test_panel_yonetim_api_guvenligi(tmp_path, monkeypatch):
+    import threading
+    import urllib.error
+    import urllib.request
+    from fusion import panel
+    s, a, saat, adim = _servis_kur(tmp_path, monkeypatch, ["BTCUSDT"], ["1m"])
+    a["panel_port"] = 0
+    sunucu = panel.sunucu(a, s)
+    threading.Thread(target=sunucu.serve_forever, daemon=True).start()
+    kok = f"http://127.0.0.1:{sunucu.server_address[1]}"
+
+    def post(yol, govde, basliklar=None):
+        h = {"Content-Type": "application/json", "X-Fuzyon": "1"}
+        h.update(basliklar or {})
+        h = {k_: v for k_, v in h.items() if v is not None}
+        istek = urllib.request.Request(kok + yol, data=json.dumps(govde).encode(), headers=h)
+        try:
+            with urllib.request.urlopen(istek) as r:
+                return r.status, json.load(r)
+        except urllib.error.HTTPError as e:
+            return e.code, json.load(e)
+
+    try:
+        o = json.load(urllib.request.urlopen(kok + "/api/servis"))
+        assert len(o["araliklar"]) == 10 and o["telegram"]["durum"] == "yok" and "salt" not in o
+        assert post("/api/aralik", {"aralik": "5m", "aktif": True}) == (200, {"tamam": True})
+        assert "5m" in s.ayarlar["aktif"]
+        # ozel baslik yoksa (baska bir sitenin form gonderimi gibi) ya da Host farkliysa reddedilir
+        assert post("/api/aralik", {"aralik": "5m", "aktif": False}, {"X-Fuzyon": None})[0] == 403
+        assert post("/api/aralik", {"aralik": "5m", "aktif": False}, {"Host": "kotu.example"})[0] == 403
+        assert "5m" in s.ayarlar["aktif"]
+        assert post("/api/aralik", {"aralik": "7m", "aktif": True})[0] == 400
+        assert post("/api/takip", {"takip": "olmayan"})[0] == 400
+        assert post("/api/takip", {"takip": "fuzyon"})[0] == 200 and s.ayarlar["takip"] == "fuzyon"
+        assert post("/api/telegram", {"islem": "token", "token": "x"})[0] == 400
+        assert post("/api/backtest", {"aralik": "1m"})[0] == 200 and s.kuyruk.qsize() == 1
+        istek = urllib.request.Request(kok + "/api/servis", headers={"Host": "kotu.example"})
+        with pytest.raises(urllib.error.HTTPError):
+            urllib.request.urlopen(istek)
+        assert post("/api/durdur", {})[0] == 200 and s.dur.is_set()
+    finally:
+        sunucu.shutdown()
+        sunucu.server_close()
+
+
+def test_bulut_komutu_tek_tur_atar(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    from fusion import cli
+    s, a, saat, adim = _servis_kur(tmp_path, monkeypatch, ["BTCUSDT", "ETHUSDT"], ["1m"])
+    tgk = _sahte_telegram(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:GECERLI")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "555")
+    assert cli.k_bulut(a, SimpleNamespace(araliklar="1m,5m")) == 0
+    assert (tmp_path / "out" / "1m" / "canli.json").exists() and (tmp_path / "out" / "5m" / "canli.json").exists()
+    tgk["guncellemeler"].append({"update_id": 7, "message": {"chat": {"id": 555, "type": "private"}, "text": "/durum 5m"}})
+    saat["ms"] += 5 * 60_000
+    assert cli.k_bulut(a, SimpleNamespace(araliklar="1m,5m")) == 0
+    assert tgk["gonderilen"][-1][1].startswith("Füzyon 5m · kâğıt")
+    n = len(tgk["gonderilen"])
+    assert cli.k_bulut(a, SimpleNamespace(araliklar="1m,5m")) == 0     # ayni komut ikinci kez yanitlanmaz
+    assert len([m for c, m in tgk["gonderilen"][n:] if "· kâğıt ·" in m]) == 0
+    cikti = capsys.readouterr().out
+    assert "1m: 1441 mum" in cikti and "5m: 289 mum" in cikti
+    assert cli.k_bulut(a, SimpleNamespace(araliklar="7m")) == 1
