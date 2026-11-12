@@ -8,6 +8,12 @@ Kâr garantisi yoktur; kararları önceden sabitlenmiş kapılar verir (`AGENTS.
 **`TradeBot.bat`** dosyasına çift tıklayın — menü açılır.
 Ayrıntılı adım adım kılavuz: **`docs/TEADEBOT_KULLANIM.md`**.
 
+## Füzyon Arena (12 Kasım 2026)
+
+**`Fuzyon.bat`** → 8 stratejinin kâğıt üzerinde yarıştığı arena + web paneli + TradingView
+göstergesi. Gerçek emir göndermez; stratejiler protokol kapılarından geçmemiştir.
+Kılavuz: **`docs/FUZYON.md`**.
+
 ## Durum (8 Kasım 2026)
 
 **5 strateji** önceden yazılmış kurallarla, tek atış protokolüyle test edildi;
