@@ -225,6 +225,9 @@ def sunucu_farki(yenile: bool = False) -> int:
             break
         except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError):
             continue
+    else:
+        # Internet yok: her cagrida yeniden denemek paneli ve donguyu kilitler; 1 dk sonra dene
+        _SAAT["okundu"] = time.time() - 1800 + 60
     return _SAAT["fark"]
 
 

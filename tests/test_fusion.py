@@ -854,3 +854,18 @@ def test_kisa_aralikta_dosya_her_mumda_yazilmaz(tmp_path, monkeypatch):
     veri._ONBELLEK.clear()
     b = veri.csv_oku(yol)
     assert len(b) == 2980 and np.all(np.diff(b.ts) == 60_000)
+
+
+def test_internet_yokken_saat_sorgusu_her_cagrida_tekrarlanmaz(monkeypatch):
+    sayac = {"n": 0}
+
+    def bozuk(url, zaman_asimi=20.0):
+        sayac["n"] += 1
+        raise OSError("yok")
+
+    monkeypatch.setattr(veri, "_http_json", bozuk)
+    monkeypatch.setitem(veri._SAAT, "okundu", 0.0)
+    monkeypatch.setitem(veri._SAAT, "fark", 0)
+    for _ in range(5):
+        veri.simdi_ms()
+    assert sayac["n"] == len(veri.SUNUCULAR)                   # yalniz ilk cagrida denendi
