@@ -112,10 +112,47 @@ def aralik_kaydet(aralik: str) -> str:
     return yol
 
 
-def cikti_klasoru(a: dict) -> str:
+def cikti_kok(a: dict) -> str:
+    """Tum araliklarin ortak cikti klasoru (servis ayarlari, gunluk)."""
     yol = a["cikti"] if os.path.isabs(a["cikti"]) else os.path.join(KOK, a["cikti"])
     os.makedirs(yol, exist_ok=True)
     return yol
+
+
+def cikti_klasoru(a: dict) -> str:
+    """Araliga ozel cikti klasoru: out/fusion/<aralik>/ (araliklar birbirinin dosyasini ezmez)."""
+    yol = os.path.join(cikti_kok(a), a["aralik"])
+    os.makedirs(yol, exist_ok=True)
+    return yol
+
+
+def eski_duzeni_tasi(a: dict) -> list:
+    """12 Kasim oncesi surum her seyi out/fusion/ icine yaziyordu. O dosyalari ait olduklari
+    aralik klasorune tasir (baslatilmis canli oturum kaybolmasin). Tasinanlarin listesini dondurur."""
+    kok = cikti_kok(a)
+    tasinan = []
+    gruplar = (("canli.json", ("canli.json", "durum_canli.json", "sinyaller.jsonl")),
+               ("durum_backtest.json", ("durum_backtest.json", "islemler_backtest.csv",
+                                        "ozsermaye_backtest.csv")))
+    for anahtar, dosyalar in gruplar:
+        yol = os.path.join(kok, anahtar)
+        if not os.path.isfile(yol):
+            continue
+        try:
+            with open(yol, encoding="utf-8") as f:
+                aralik = json.load(f).get("aralik")
+        except (OSError, ValueError):
+            aralik = None
+        if aralik not in ON_AYAR:
+            continue
+        hedef = os.path.join(kok, aralik)
+        os.makedirs(hedef, exist_ok=True)
+        for d in dosyalar:
+            kaynak = os.path.join(kok, d)
+            if os.path.isfile(kaynak) and not os.path.exists(os.path.join(hedef, d)):
+                os.replace(kaynak, os.path.join(hedef, d))
+                tasinan.append(f"{d} -> {aralik}/")
+    return tasinan
 
 
 def veri_klasoru(a: dict) -> str:

@@ -22,9 +22,8 @@ import sys
 import time
 
 from . import ayar as ayar_m
-from . import canli, durum, panel, stratejiler, veri
+from . import canli, durum, islem, panel, stratejiler, veri
 from .kural import KuralHatasi, kural_kaydet
-from .motor import Motor
 
 
 def _ilerleme(sembol, imlec, son):
@@ -52,19 +51,10 @@ def k_veri(a, args) -> int:
 
 
 def _backtest(a, piyasa, mod: str, not_: str = ""):
-    gun = int(a["backtest_gun"])
-    bas_ts = int(piyasa.T[-1]) - gun * 86_400_000
-    piyasa = veri.kirp(piyasa, bas_ts)
-    k_bas = piyasa.k_bul(bas_ts)
-    t0 = time.time()
-    sonuc = Motor(piyasa, stratejiler.hepsi(a), a).kos(k_bas)
-    d = durum.olustur(sonuc, mod, not_)
-    durum.yaz(d, a, "backtest")
-    y1, y2 = durum.islemleri_yaz(sonuc, a, "backtest"), durum.egrileri_yaz(sonuc, a, "backtest")
-    print(f"{d['bar_sayisi']} bar · {durum._zaman(d['bas_ts'])} → {durum._zaman(d['son_ts'])} · "
-          f"{time.time() - t0:.1f} sn")
+    d, sure, _ = islem.backtest(a, piyasa, mod, not_)
+    print(f"{d['bar_sayisi']} bar · {durum._zaman(d['bas_ts'])} → {durum._zaman(d['son_ts'])} · {sure:.1f} sn")
     durum.tablo_yazdir(d)
-    print(f"İşlem listesi : {y1}\nÖzsermaye     : {y2}")
+    print(f"İşlem listesi ve özsermaye dosyaları: {ayar_m.cikti_klasoru(a)}")
     return d
 
 
