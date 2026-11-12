@@ -101,6 +101,8 @@ class Motor:
         self.a = ayar
         self.kom = float(ayar["komisyon_bps"]) / 10_000.0
         self.kayma = float(ayar["kayma_bps"]) / 10_000.0
+        self.kilit_bar = int(ayar.get("dd_kilit_bar") or
+                             max(1, round(float(ayar["dd_kilit_gun"]) * 86_400_000 / piyasa.adim_ms)))
         self.T = piyasa.T.tolist()
         self.idx = {s: piyasa.idx[s].tolist() for s in piyasa.semboller}
         self.o = {s: piyasa.barlar[s].o.tolist() for s in piyasa.semboller}
@@ -263,11 +265,11 @@ class Motor:
         if oz > h.tepe:
             h.tepe = oz
         if k >= h.kilit_k and h.tepe > 0 and oz <= h.tepe * (1.0 - float(self.a["dd_siniri"])):
-            h.kilit_k = k + 1 + int(self.a["dd_kilit_bar"])
+            h.kilit_k = k + 1 + self.kilit_bar
             dusus = 1.0 - oz / h.tepe
             h.tepe = oz
             self._olay(self.T[k] + self.p.adim_ms, k, h, "KILIT", "-", 0, None,
-                       f"dusus %{dusus * 100:.1f} >= sinir; {int(self.a['dd_kilit_bar'])} bar yeni giris yok")
+                       f"dusus %{dusus * 100:.1f} >= sinir; {self.kilit_bar} bar yeni giris yok")
 
     # ------------------------------------------------------------------- kos
     def kos(self, k_bas: int, k_son: int | None = None) -> Sonuc:

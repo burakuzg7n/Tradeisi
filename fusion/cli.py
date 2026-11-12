@@ -80,8 +80,9 @@ def k_backtest(a, args) -> int:
 
 def k_demo(a, args) -> int:
     print("DEMO: sentetik (uydurma) veriyle çalışıyor — yalnız programı denemek içindir.")
-    a["backtest_gun"] = 60
-    piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"], sentetik_mi=True, sentetik_n=12_000)
+    n = 6000
+    a["backtest_gun"] = n * veri.ARALIK_MS[a["aralik"]] // 86_400_000 // 2     # son yarisi
+    piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"], sentetik_mi=True, sentetik_n=n)
     _backtest(a, piyasa, "demo", "Sentetik veri: sonuçların piyasa anlamı yoktur")
     if not args.panelsiz:
         panel.baslat(a)
