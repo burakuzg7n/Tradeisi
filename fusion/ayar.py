@@ -33,6 +33,7 @@ VARSAYILAN = {
     "webhook_url": "",          # sinyallerin POST edilecegi adres (bos = kapali)
     "panel_port": 8777,
     "cikti": "out/fusion",
+    "veri": "data",             # mum verisi klasoru (kok klasore gore)
 }
 
 
@@ -57,6 +58,13 @@ def yukle(ustune: dict | None = None) -> dict:
 
 def cikti_klasoru(a: dict) -> str:
     yol = a["cikti"] if os.path.isabs(a["cikti"]) else os.path.join(KOK, a["cikti"])
+    os.makedirs(yol, exist_ok=True)
+    return yol
+
+
+def veri_klasoru(a: dict) -> str:
+    yol = a.get("veri") or "data"
+    yol = yol if os.path.isabs(yol) else os.path.join(KOK, yol)
     os.makedirs(yol, exist_ok=True)
     return yol
 

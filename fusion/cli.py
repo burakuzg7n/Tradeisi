@@ -37,7 +37,8 @@ def k_veri(a, args) -> int:
     hata = 0
     for s in a["semboller"]:
         try:
-            b = veri.guncelle(s, a["aralik"], a["gecmis_gun"], ilerleme=_ilerleme)
+            b = veri.guncelle(s, a["aralik"], a["gecmis_gun"], ayar_m.veri_klasoru(a),
+                              ilerleme=_ilerleme)
             print(f"\r  {s}: {len(b)} mum" + (f" ({durum._zaman(int(b.ts[0]))} → {durum._zaman(int(b.ts[-1]))})"
                                                 if len(b) else " — VERİ YOK"))
         except ConnectionError as e:
@@ -68,7 +69,7 @@ def _backtest(a, piyasa, mod: str, not_: str = ""):
 def k_backtest(a, args) -> int:
     if args.gun:
         a["backtest_gun"] = args.gun
-    piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"])
+    piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"], ayar_m.veri_klasoru(a))
     eksik = [s for s in a["semboller"] if s not in piyasa.barlar]
     if eksik:
         print(f"UYARI: verisi olmayan semboller atlandı: {', '.join(eksik)}")
@@ -130,7 +131,7 @@ def k_kontrol(a, args) -> int:
     import numpy
     print(f"Python {sys.version.split()[0]} · numpy {numpy.__version__} — tamam")
     for s in a["semboller"]:
-        b = veri.csv_oku(veri.csv_yolu(s, a["aralik"]))
+        b = veri.csv_oku(veri.csv_yolu(s, a["aralik"], ayar_m.veri_klasoru(a)))
         print(f"  {s}_{a['aralik']}: " + (f"{len(b)} mum, son {durum._zaman(int(b.ts[-1]))}" if len(b) else "veri yok"))
     print(f"Stratejiler: {', '.join(s.ad for s in stratejiler.hepsi(a))}")
     return 0

@@ -406,3 +406,79 @@ def test_rastgele_yuruyuste_sistematik_kazanc_yok(tmp_path):
         v = np.array(v)
         t = v.mean() / (v.std(ddof=1) / np.sqrt(len(v)))
         assert abs(t) < 3.0, (ad, round(float(v.mean()), 2), round(float(t), 2))
+
+
+# ----------------------------------------- uctan uca: sahte Binance ile canli dongu ve komutlar
+def _sahte_borsa(monkeypatch, semboller, aralik, n, simdi_i):
+    """Zamani ilerletilebilen sahte Binance: klines + time uclari. Bilgisayar saati de buna baglanir."""
+    adim = veri.ARALIK_MS[aralik]
+    kaynak = {s: veri.sentetik(s, n, aralik) for s in semboller}
+    saat = {"ms": int(kaynak[semboller[0]].ts[simdi_i])}
+
+    def sahte(url, zaman_asimi=20.0):
+        from urllib.parse import parse_qs, urlparse
+        u = urlparse(url)
+        if u.path.endswith("/time"):
+            return {"serverTime": saat["ms"]}
+        q = parse_qs(u.query)
+        b = kaynak[q["symbol"][0]]
+        bas = int(q["startTime"][0])
+        m = (b.ts >= bas) & (b.ts <= saat["ms"])               # son satir kapanmamis mum olabilir
+        i = np.flatnonzero(m)[: int(q["limit"][0])]
+        return [[int(b.ts[j])] + [repr(float(x[j])) for x in (b.o, b.h, b.l, b.c, b.v)]
+                + [int(b.ts[j]) + adim - 1] for j in i]
+
+    monkeypatch.setattr(veri, "_http_json", sahte)
+    monkeypatch.setattr(veri.time, "sleep", lambda s: None)
+    monkeypatch.setattr(veri.time, "time", lambda: saat["ms"] / 1000.0)
+    monkeypatch.setitem(veri._SAAT, "okundu", 0.0)
+    monkeypatch.setitem(veri._SAAT, "fark", 0)
+    return kaynak, saat, adim
+
+
+def test_uctan_uca_canli_dongu_sahte_binance(tmp_path, monkeypatch):
+    semboller = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+    a = _ayar(tmp_path, semboller=semboller, aralik="4h", gecmis_gun=400, canli_geri_gun=20,
+              veri=str(tmp_path / "data"), komisyon_bps=5.0, kayma_bps=2.0)
+    kaynak, saat, adim = _sahte_borsa(monkeypatch, semboller, "4h", 4000, 3000)
+    saat["ms"] += 1000                                         # mumun 1. saniyesi: onceki mum yeni kapandi
+    d1, _ = canli.tur(a, sessiz=True)
+    b = veri.csv_oku(veri.csv_yolu("BTCUSDT", "4h", a["veri"]))
+    assert len(b) == 400 * 6 and int(b.ts[-1]) + adim <= saat["ms"]     # kapanmamis mum yok
+    assert d1["bar_sayisi"] == 20 * 6 + 1 and d1["not"] == ""
+    toplam = 0
+    for _ in range(40):                                        # 40 yeni mum = ~1 hafta
+        saat["ms"] += adim
+        d, n = canli.tur(a, sessiz=True)
+        toplam += n
+    b2 = veri.csv_oku(veri.csv_yolu("BTCUSDT", "4h", a["veri"]))
+    assert len(b2) == len(b) + 40 and np.all(np.diff(b2.ts) == adim)
+    np.testing.assert_array_equal(b2.c, kaynak["BTCUSDT"].kes(int(b2.ts[0]), int(b2.ts[-1])).c)
+    assert d["bar_sayisi"] == d1["bar_sayisi"] + 40
+    satirlar = [json.loads(x) for x in open(tmp_path / "out" / "sinyaller.jsonl", encoding="utf-8")]
+    assert toplam == len(satirlar) > 0
+    anahtarlar = [(o["ts"], o["strateji"], o["sembol"], o["yon"]) for o in satirlar]
+    assert len(anahtarlar) == len(set(anahtarlar))             # ayni sinyal iki kez iletilmedi
+    # dongu basta bugune kadar tek seferde oynatilsaydi ayni sonuc cikardi (cokme/yeniden baslatma guvenli)
+    k = canli.kayit_oku(a)
+    p = veri.kirp(veri.piyasa_yukle(semboller, "4h", a["veri"]), k["baslangic_ts"])
+    tek = Motor(p, stratejiler.hepsi(a), a).kos(p.k_bul(k["baslangic_ts"]))
+    assert {r["ad"]: r["ozsermaye"] for r in d["tablo"]} == \
+        pytest.approx({ad: h.son_oz for ad, h in tek.hesaplar.items()})
+
+
+def test_komutlar_sahte_binance(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    from fusion import cli
+    semboller = ["BTCUSDT", "ETHUSDT"]
+    a = _ayar(tmp_path, semboller=semboller, aralik="1h", gecmis_gun=200, backtest_gun=60,
+              veri=str(tmp_path / "data"))
+    _sahte_borsa(monkeypatch, semboller, "1h", 8000, 6000)
+    assert cli.k_veri(a, SimpleNamespace()) == 0
+    assert cli.k_kontrol(a, SimpleNamespace()) == 0
+    assert cli.k_backtest(a, SimpleNamespace(gun=0, panel=False)) == 0
+    assert cli.k_durum(a, SimpleNamespace()) == 0
+    cikti = capsys.readouterr().out
+    assert "4800 mum" in cikti and "fuzyon" in cikti and "maliyet öncesi" in cikti
+    d = json.load(open(tmp_path / "out" / "durum_backtest.json", encoding="utf-8"))
+    assert d["aralik"] == "1h" and d["bar_sayisi"] == 60 * 24 + 1 and len(d["tablo"]) == 8

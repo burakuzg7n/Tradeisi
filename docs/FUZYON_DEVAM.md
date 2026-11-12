@@ -53,7 +53,7 @@ Yeni oturum ÖNCE bu dosyayı okur, "Adımlar" listesinde ilk işaretsiz maddede
   olduğundan iyi gösteriyordu). Tarafsızlık ölçümü: yönsüz yürüyüş + sıfır maliyetle 150 tohumda
   ortalama K/Z istatistiksel olarak sıfır (t ≈ 0,5) → motorun dolum mantığında iyimser sapma yok.
 - [x] 10. Varsayılan aralık 15m → 4h (gerekçe: maliyet/stop oranı, `docs/FUZYON.md`).
-- [x] 11. 343 test yeşil (29'u `tests/test_fusion.py`); Binance indirme yolu sahte API ile sınandı.
+- [x] 11. 345 test yeşil (31'u `tests/test_fusion.py`); Binance indirme + canlı döngü sahte API ile uçtan uca sınandı (40 mumluk canlı döngü, çift sinyal yok, tek seferde oynatmayla aynı sonuç).
 
 ### Ölçümler (Burak'ın makinesi, yalnız BTCUSDT + ETHUSDT, maliyetler dahil, 1.000 USDT/strateji)
 Bunlar kapı kararı değildir; tek geçmiş yolun ölçümüdür.

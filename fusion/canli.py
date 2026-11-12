@@ -11,7 +11,7 @@ import os
 import time
 
 from . import durum, iletim, stratejiler, veri
-from .ayar import cikti_klasoru
+from .ayar import cikti_klasoru, veri_klasoru
 from .motor import Motor
 
 
@@ -39,10 +39,11 @@ def tur(a: dict, simdi_ms: int | None = None, indir: bool = True, piyasa=None, s
     uyari = ""
     if piyasa is None:
         if indir:
-            uyari = veri.hepsini_guncelle(a["semboller"], a["aralik"], a["gecmis_gun"])
+            uyari = veri.hepsini_guncelle(a["semboller"], a["aralik"], a["gecmis_gun"],
+                                          veri_klasoru(a))
             if uyari and not sessiz:
                 print("  UYARI: " + uyari)
-        piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"])
+        piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"], veri_klasoru(a))
     simdi_ms = simdi_ms or veri.simdi_ms()
     k = kayit_oku(a)
     if k and (k.get("aralik") != a["aralik"] or k.get("semboller") != list(a["semboller"])):
