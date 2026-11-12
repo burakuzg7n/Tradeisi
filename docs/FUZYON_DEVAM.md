@@ -103,6 +103,17 @@ Uyarılar: yalnız 2 coin; fonlama modellenmedi; 15m görüldükten sonra 4h'ye 
 - 5m ve 1m gerçek veriyle ölçülmedi (Burak'ın klasöründe yalnız 15m ve 4h BTC/ETH var; sanal kabukta
   internet yok).
 
+## 4. tur — penceresiz servis, panelden yönetim, Telegram, bulut (12 Kasım 2026 akşam)
+Burak'ın isteği: aralığı tek tek ayarlamak ve cmd penceresi olmasın; her şey `http://127.0.0.1:8777`
+üzerinden; Telegram bağlansın; PC kapalıyken de çalışabilsin. Onay beklemeden, adım adım.
+- [ ] 18. Çıktılar aralığa göre ayrı klasörde (`out/fusion/<aralik>/`); eski düzenin taşınması
+- [ ] 19. `fusion/servis.py`: tüm aralıkları sırayla çalıştıran arka plan servisi (iş kuyruğu, durum, günlük)
+- [ ] 20. Panel v2: aralık seçici, canlı/backtest, ayarlar (takip aç/kapa, backtest çalıştır, durdur)
+- [ ] 21. Telegram: panelden bağlama, test mesajı, aralık başına bildirim, `/durum` komutu
+- [ ] 22. Penceresiz başlatma (`Fuzyon.vbs`), isteğe bağlı Windows açılışında başlatma
+- [ ] 23. Bulut: `python -m fusion bulut` + GitHub Actions zamanlanmış iş (PC kapalıyken 4h/1h sinyali)
+- [ ] 24. Testler, kılavuz, Burak'ın klasörüne eşitleme + sha256 doğrulama
+
 ## Sonraki olası işler (istek gelirse)
 - Burak'ın ilk Windows çalıştırmasından gelen hata/çıktıya göre düzeltme
 - Pine derleme hatası çıkarsa düzeltme
