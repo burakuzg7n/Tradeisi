@@ -40,21 +40,37 @@ class QAjan(Strateji):
         d[gecersiz] = -1
         return d
 
+    _anahtar = None      # egitimin yapildigi veri dilimi; ayni dilimde yeniden egitilmez
+    egitildi = 0
+
+    def sifirla(self):
+        self._anahtar = None
+
     def hazirla(self, piyasa, k_bas, ayar):
         self._durum = {}
-        self.q = [[0.0, 0.0, 0.0] for _ in range(36 * 3)]
-        self.egitildi = 0
-        rnd = random.Random(1234)
         maliyet = 2 * (ayar["komisyon_bps"] + ayar["kayma_bps"]) / 10_000.0
         yonler = (0, 1) if not ayar["short_acik"] else (0, 1, 2)
+        self._yonler = yonler
         t_bas = int(piyasa.T[k_bas]) if k_bas < len(piyasa.T) else int(piyasa.T[-1]) + 1
-        q, alfa, gama = self.q, self.alfa, self.gama
+        dilimler = {}
         for s in piyasa.semboller:
             bars = piyasa.barlar[s]
             d = self._durumlar(bars, piyasa.atr[s], piyasa.oyn_orani(s))
             self._durum[s] = d.tolist()
             son = int(np.searchsorted(bars.ts, t_bas))      # egitim: yalniz t_bas oncesi
             bas = max(0, son - self.egitim_bar)
+            dilimler[s] = (d, bars, bas, son)
+        anahtar = (t_bas, maliyet, yonler,
+                   tuple((s, int(v[1].ts[v[2]]) if v[3] > v[2] else 0, v[3] - v[2])
+                         for s, v in dilimler.items()))
+        if anahtar == self._anahtar:
+            return                                          # canli modda her mumda yeniden egitme
+        self._anahtar = anahtar
+        self.q = [[0.0, 0.0, 0.0] for _ in range(36 * 3)]
+        self.egitildi = 0
+        rnd = random.Random(1234)
+        q, alfa, gama = self.q, self.alfa, self.gama
+        for s, (d, bars, bas, son) in dilimler.items():
             dl, cl = d[bas:son].tolist(), bars.c[bas:son].tolist()
             if len(dl) < self.min_egitim:
                 continue
@@ -77,7 +93,6 @@ class QAjan(Strateji):
                     sonraki = q[dl[i + 1] * 3 + eylem]
                     satir[eylem] += alfa * (odul + gama * max(sonraki[y] for y in yonler) - satir[eylem])
                     poz = eylem
-        self._yonler = yonler
 
     def bar(self, k, hesap, b):
         if not self.egitildi:

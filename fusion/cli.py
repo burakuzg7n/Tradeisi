@@ -9,6 +9,8 @@
   demo       Internetsiz deneme (sentetik veri) + panel
   kural      Metinden yeni strateji ekle:
              python -m fusion kural AD "long giris" ["long cikis" ["short giris" ["short cikis"]]]
+  aralik     Mum araligini goster / sec:  python -m fusion aralik 5m
+             (1m 3m 5m 10m 15m 30m 1h 2h 4h 1d — secim fuzyon_ayar.json'a yazilir)
   ayar       Duzenlenebilir fuzyon_ayar.json dosyasini olustur
 """
 from __future__ import annotations
@@ -67,7 +69,7 @@ def _backtest(a, piyasa, mod: str, not_: str = ""):
 
 
 def k_backtest(a, args) -> int:
-    if args.gun:
+    if getattr(args, "gun", 0):
         a["backtest_gun"] = args.gun
     piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"], ayar_m.veri_klasoru(a))
     eksik = [s for s in a["semboller"] if s not in piyasa.barlar]
@@ -131,7 +133,7 @@ def k_kontrol(a, args) -> int:
     import numpy
     print(f"Python {sys.version.split()[0]} · numpy {numpy.__version__} — tamam")
     for s in a["semboller"]:
-        b = veri.csv_oku(veri.csv_yolu(s, a["aralik"], ayar_m.veri_klasoru(a)))
+        b = veri.oku(s, a["aralik"], ayar_m.veri_klasoru(a))
         print(f"  {s}_{a['aralik']}: " + (f"{len(b)} mum, son {durum._zaman(int(b.ts[-1]))}" if len(b) else "veri yok"))
     print(f"Stratejiler: {', '.join(s.ad for s in stratejiler.hepsi(a))}")
     return 0
@@ -145,6 +147,30 @@ def k_kural(a, args) -> int:
         print(f"Kural kabul edilmedi: {e}")
         return 1
     print(f"Kural stratejisi eklendi: {yol}\nBir sonraki backtest/canlı çalıştırmada arenaya katılır.")
+    return 0
+
+
+def k_aralik(a, args) -> int:
+    secenekler = " ".join(ayar_m.ON_AYAR)
+    if not args.deger:
+        print(f"Mum aralığı: {a['aralik']}   (seçenekler: {secenekler})")
+        return 0
+    try:
+        yol = ayar_m.aralik_kaydet(args.deger)
+    except ValueError as e:
+        print(f"HATA: {e}")
+        return 1
+    o = ayar_m.ON_AYAR[args.deger]
+    print(f"Mum aralığı {args.deger} olarak kaydedildi ({yol}).")
+    print(f"  indirilecek geçmiş {o['gecmis_gun']} gün · backtest son {o['backtest_gun']} gün · "
+          f"canlı mod son {o['canli_geri_gun']} günden başlar")
+    if args.deger in veri.TUREV:
+        print(f"  Not: Binance'te {args.deger} mum yok; {veri.TUREV[args.deger]} mumlardan toplanarak üretilir.")
+    if veri.ARALIK_MS[args.deger] <= veri.ARALIK_MS["15m"]:
+        print("  Uyarı: kısa aralıkta her işlemin maliyeti stop mesafesine göre çok büyüktür; backtest\n"
+              "  tablosunun altındaki 'işlem başına ≈ … R' satırına bakın. Bot emir göndermez; 1-5\n"
+              "  dakikalık sinyali elle yakalamak pratikte mümkün değildir.")
+    print("Sırada: veri indir (2), sonra backtest (3) ya da canlı (4). Canlı hesaplar yeni aralıkta baştan başlar.")
     return 0
 
 
@@ -186,6 +212,8 @@ def main(argv=None) -> int:
     k.add_argument("short_cikis", nargs="?", default="")
     k.add_argument("--stop-atr", type=float, default=2.0)
     k.add_argument("--kar-atr", type=float, default=0.0)
+    ar = alt.add_parser("aralik")
+    ar.add_argument("deger", nargs="?", default="")
     alt.add_parser("ayar")
     args = p.parse_args(argv)
     if not args.komut:
@@ -193,7 +221,7 @@ def main(argv=None) -> int:
         return 0
     a = ayar_m.yukle()
     if getattr(args, "aralik", None):
-        a["aralik"] = args.aralik
+        ayar_m.aralik_uygula(a, args.aralik)
     try:
         return globals()["k_" + args.komut](a, args)
     except ValueError as e:

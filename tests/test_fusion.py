@@ -482,3 +482,115 @@ def test_komutlar_sahte_binance(tmp_path, monkeypatch, capsys):
     assert "4800 mum" in cikti and "fuzyon" in cikti and "maliyet öncesi" in cikti
     d = json.load(open(tmp_path / "out" / "durum_backtest.json", encoding="utf-8"))
     assert d["aralik"] == "1h" and d["bar_sayisi"] == 60 * 24 + 1 and len(d["tablo"]) == 8
+
+
+# ----------------------------------------------------- kisa araliklar / scalp (12 Kas, 3. tur)
+def test_10m_mumlar_5m_den_toplanir():
+    b = veri.sentetik("X", 101, "5m")
+    t = veri.topla(b, 300_000, 600_000)
+    assert len(t) == 50 and np.all(t.ts % 600_000 == 0) and np.all(np.diff(t.ts) == 600_000)
+    assert t.o[0] == b.o[0] and t.c[0] == b.c[1] and t.h[0] == max(b.h[0], b.h[1]) and t.l[0] == min(b.l[0], b.l[1])
+    assert t.v.sum() == pytest.approx(b.v[:100].sum())
+    yarim = veri.topla(b.kes(son_ts=int(b.ts[2])), 300_000, 600_000)     # 3 kucuk mum: 2. grup acik
+    assert len(yarim) == 1
+
+
+def test_araliga_gore_on_ayarlar(tmp_path, monkeypatch):
+    monkeypatch.setattr(ayar_m, "ayar_yolu", lambda: str(tmp_path / "fuzyon_ayar.json"))
+    a = ayar_m.yukle()
+    assert a["aralik"] == "4h" and a["gecmis_gun"] == 1500
+    ayar_m.aralik_uygula(a, "1m")
+    assert (a["gecmis_gun"], a["backtest_gun"], a["canli_geri_gun"], a["dd_kilit_gun"]) == (30, 10, 1, 1)
+    for ar, o in ayar_m.ON_AYAR.items():                       # indirme boyutu makul kalsin
+        assert ar in veri.ARALIK_MS and o["gecmis_gun"] * 86_400_000 // veri.ARALIK_MS[ar] <= 50_000
+        assert o["backtest_gun"] < o["gecmis_gun"]
+    ayar_m.aralik_kaydet("5m")
+    json.dump({"aralik": "5m", "backtest_gun": 7, "risk_yuzde": 0.5},
+              open(tmp_path / "fuzyon_ayar.json", "w"))
+    b = ayar_m.yukle()
+    assert b["aralik"] == "5m" and b["gecmis_gun"] == 150 and b["backtest_gun"] == 7 and b["risk_yuzde"] == 0.5
+    ayar_m.aralik_kaydet("15m")                                 # diger ayarlara dokunmaz
+    c = ayar_m.yukle()
+    assert c["aralik"] == "15m" and c["backtest_gun"] == 7 and c["risk_yuzde"] == 0.5 and c["gecmis_gun"] == 500
+    with pytest.raises(ValueError):
+        ayar_m.aralik_kaydet("7m")
+
+
+def test_aralik_komutu(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    from fusion import cli
+    monkeypatch.setattr(ayar_m, "ayar_yolu", lambda: str(tmp_path / "fuzyon_ayar.json"))
+    assert cli.k_aralik(ayar_m.yukle(), SimpleNamespace(deger="")) == 0
+    assert cli.k_aralik(ayar_m.yukle(), SimpleNamespace(deger="10m")) == 0
+    assert cli.k_aralik(ayar_m.yukle(), SimpleNamespace(deger="abc")) == 1
+    cikti = capsys.readouterr().out
+    assert "Mum aralığı: 4h" in cikti and "5m mumlardan toplanarak" in cikti and "Uyarı" in cikti
+    assert ayar_m.yukle()["aralik"] == "10m"
+
+
+def test_canli_1m_adim_adim_ilerler_ve_10m_calisir(tmp_path, monkeypatch):
+    """Kisa aralikta her mumda bastan oynatma yok: ayni Motor nesnesi yalniz yeni mumu isler,
+    sonuc tek seferde oynatmayla ayni kalir. 10m (5m'den turetilmis) canli dongusu de calisir."""
+    semboller = ["BTCUSDT", "ETHUSDT"]
+    for aralik, n, simdi_i, adim_carpan in (("1m", 9000, 8000, 1), ("10m", 9000, 8000, 2)):
+        kok = tmp_path / aralik
+        a = _ayar(kok, semboller=semboller, veri=str(kok / "data"), komisyon_bps=5.0, kayma_bps=2.0)
+        ayar_m.aralik_uygula(a, aralik)
+        a.update(gecmis_gun=5 if aralik == "1m" else 25, canli_geri_gun=1)
+        taban = veri.TUREV.get(aralik, aralik)
+        kaynak, saat, taban_adim = _sahte_borsa(monkeypatch, semboller, taban, n, simdi_i)
+        saat["ms"] += 1000
+        d1, _ = canli.tur(a, sessiz=True)
+        motor = canli._OTURUM[canli._kayit_yolu(a)]["motor"]
+        for _ in range(30):
+            saat["ms"] += taban_adim * adim_carpan
+            d, _ = canli.tur(a, sessiz=True)
+            assert canli._OTURUM[canli._kayit_yolu(a)]["motor"] is motor      # yeniden kurulmadi
+        assert d["bar_sayisi"] == d1["bar_sayisi"] + 30 and d["aralik"] == aralik
+        assert d["maliyet_r"] is not None and d["maliyet_r"] > 0
+        k = canli.kayit_oku(a)
+        p = veri.kirp(veri.piyasa_yukle(semboller, aralik, a["veri"]), k["baslangic_ts"])
+        assert np.all(np.diff(p.barlar["BTCUSDT"].ts) == veri.ARALIK_MS[aralik])
+        tek = Motor(p, stratejiler.hepsi(a), a).kos(p.k_bul(k["baslangic_ts"]))
+        assert {r["ad"]: r["ozsermaye"] for r in d["tablo"]} == \
+            pytest.approx({ad: h.son_oz for ad, h in tek.hesaplar.items()})
+        assert sum(r["islem"] for r in d["tablo"]) == sum(len(h.islemler) for h in tek.hesaplar.values())
+
+
+def test_islenmis_gecmis_degisirse_bastan_oynatir(tmp_path):
+    a, p = _arena(tmp_path, n=3000, canli_geri_gun=5)
+    son = int(p.T[-1])
+    p1 = Piyasa({s: b.kes(son_ts=son - 2 * ADIM) for s, b in p.barlar.items()}, "15m")
+    canli.tur(a, simdi_ms=son, piyasa=p1, sessiz=True)
+    motor = canli._OTURUM[canli._kayit_yolu(a)]["motor"]
+    # islenmis bolgede bir sembolun mumu sonradan geliyor/eksiliyor -> prefix ayni degil
+    eksik = dict(p.barlar)
+    b = eksik["ETHUSDT"]
+    m = np.ones(len(b), dtype=bool)
+    m[-50] = False
+    eksik["ETHUSDT"] = Bars(b.ts[m], b.o[m], b.h[m], b.l[m], b.c[m], b.v[m])
+    d, _ = canli.tur(a, simdi_ms=son + ADIM, piyasa=Piyasa(eksik, "15m"), sessiz=True)
+    assert canli._OTURUM[canli._kayit_yolu(a)]["motor"] is not motor
+    assert d["bar_sayisi"] == 5 * 96 + 1 + 2          # baslangic sabit; 2 yeni mum
+
+
+def test_sezon_siniri(tmp_path):
+    a, p = _arena(tmp_path, n=3000, canli_geri_gun=2, canli_max_bar=200)
+    son = int(p.T[-1])
+    p1 = Piyasa({s: b.kes(son_ts=son - 20 * ADIM) for s, b in p.barlar.items()}, "15m")
+    d1, _ = canli.tur(a, simdi_ms=son - 19 * ADIM, piyasa=p1, sessiz=True)
+    assert d1["bar_sayisi"] == 2 * 96 + 1 and d1["sezon"] == 1
+    d2, _ = canli.tur(a, simdi_ms=son + ADIM, piyasa=p, sessiz=True)       # 213 mum > 200
+    assert d2["sezon"] == 2 and d2["bar_sayisi"] == 2 * 96 + 1
+    assert (tmp_path / "out" / "sezon_001.json").exists()
+    assert all(r["islem"] <= d1["tablo"][0]["islem"] + 400 for r in d2["tablo"])
+
+
+def test_csv_onbellegi_dosya_degisince_yenilenir(tmp_path):
+    b = veri.sentetik("X", 40)
+    yol = str(tmp_path / "X_15m.csv")
+    veri.csv_yaz(yol, b.kes(son_ts=int(b.ts[19])))
+    ilk = veri.csv_oku(yol)
+    assert veri.csv_oku(yol) is ilk and len(ilk) == 20           # ayni nesne: yeniden okunmadi
+    veri.csv_ekle(yol, b.kes(bas_ts=int(b.ts[20])))
+    assert len(veri.csv_oku(yol)) == 40                          # dosya buyudu: yeniden okundu

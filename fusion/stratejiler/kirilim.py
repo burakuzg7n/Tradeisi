@@ -23,9 +23,14 @@ class Kirilim(Strateji):
     kaynak = "timercrack/trader"
     break_n, atr_n, kisa_n, uzun_n, stop_n = 20, 20, 20, 60, 3.0
 
+    def __init__(self):
+        self.sifirla()
+
+    def sifirla(self):
+        self._uc = {}        # sembol -> (k_giris, giristen beri uc deger)
+
     def hazirla(self, piyasa, k_bas, ayar):
         self._d = {}
-        self._uc = {}        # sembol -> (k_giris, giristen beri uc deger)
         for s in piyasa.semboller:
             b = piyasa.barlar[s]
             kisa, uzun = g.wilder(b.c, self.kisa_n), g.wilder(b.c, self.uzun_n)

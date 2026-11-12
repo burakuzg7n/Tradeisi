@@ -21,7 +21,7 @@ SAYFA = r"""<!doctype html>
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--cizgi);background:var(--kart);position:sticky;top:0;z-index:2}
 h1{font-size:18px;margin:0;letter-spacing:.2px}h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.8px;color:var(--soluk)}
 .rozet{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--cizgi);color:var(--soluk)}
-.rozet.k{color:var(--uyari);border-color:var(--uyari)}
+.rozet.k{color:var(--uyari);border-color:var(--uyari)}.rozet.e{color:var(--eksi);border-color:var(--eksi)}
 .sekme{margin-left:auto;display:flex;border:1px solid var(--cizgi);border-radius:8px;overflow:hidden}
 .sekme button{border:0;background:none;color:var(--soluk);padding:6px 14px;cursor:pointer;font:inherit}
 .sekme button.secili{background:var(--vurgu);color:#fff}
@@ -44,7 +44,7 @@ svg{width:100%;height:320px;display:block}.akis{max-height:420px;overflow:auto}
 .cubuk i{position:absolute;top:0;bottom:0;border-radius:4px}
 .bos{color:var(--soluk);padding:18px 0;text-align:center}footer{padding:6px 20px 26px;color:var(--soluk);font-size:12px;max-width:1500px;margin:0 auto}
 </style></head><body>
-<header><h1>Füzyon Arena</h1><span class="rozet k">KÂĞIT İŞLEM · gerçek emir yok</span><span class="rozet" id="bilgi">yükleniyor…</span>
+<header><h1>Füzyon Arena</h1><span class="rozet k">KÂĞIT İŞLEM · gerçek emir yok</span><span class="rozet" id="bilgi">yükleniyor…</span><span class="rozet" id="maliyet" style="display:none" title="Gidiş-dönüş komisyon + kaymanın, 2 ATR'lik stop mesafesine oranı. 0,15 R üstü: maliyet çok yüksek."></span>
 <div class="sekme"><button data-mod="canli" class="secili">Canlı</button><button data-mod="backtest">Backtest</button></div></header>
 <main>
 <section class="kart genis"><h2>Liderlik tablosu</h2><div class="kaydir" id="tablo"></div></section>
@@ -68,10 +68,11 @@ const zm=ms=>ms?new Date(ms).toLocaleString("tr-TR",{day:"2-digit",month:"2-digi
 const YON={"1":"LONG","-1":"SHORT","0":"KAPAT"};
 function renkler(){const m={};(veri?.tablo||[]).map(r=>r.ad).sort().forEach((a,i)=>m[a]=RENK[i%RENK.length]);return m}
 function ciz(){
-  if(!veri||veri.yok){$("bilgi").textContent=mod==="canli"?"Canlı veri yok — Fuzyon.bat → 4":"Backtest yok — Fuzyon.bat → 3";
+  if(!veri||veri.yok){$("maliyet").style.display="none";$("bilgi").textContent=mod==="canli"?"Canlı veri yok — Fuzyon.bat → 4":"Backtest yok — Fuzyon.bat → 3";
     ["tablo","akis","pozlar","kurul","islemler"].forEach(i=>$(i).innerHTML='<div class="bos">Henüz veri yok.</div>');$("grafik").innerHTML="";$("lejant").innerHTML="";$("alt").textContent="";return}
   const R=renkler();
-  $("bilgi").textContent=`${veri.mod==="demo"?"DEMO (sentetik veri)":veri.mod} · ${veri.aralik} · ${zm(veri.bas_ts)} → ${zm(veri.son_ts)} · güncelleme ${zm(veri.guncelleme)}`;
+  $("bilgi").textContent=`${veri.mod==="demo"?"DEMO (sentetik veri)":veri.mod} · ${veri.aralik} · ${zm(veri.bas_ts)} → ${zm(veri.son_ts)} · güncelleme ${zm(veri.guncelleme)}${veri.sezon>1?" · sezon "+veri.sezon:""}`;
+  const mr=veri.maliyet_r;$("maliyet").style.display=mr==null?"none":"";if(mr!=null){$("maliyet").textContent=`maliyet ≈ işlem başına ${s2(mr)} R`;$("maliyet").className="rozet"+(mr>0.15?" e":"")}
   $("tablo").innerHTML=`<table><tr><th>#</th><th>Strateji</th><th>Özsermaye</th><th>Getiri</th><th>Maks. düşüş</th><th>Sharpe</th><th>Sortino</th><th>PF</th><th>İşlem</th><th>Kazanma</th><th>Ort. R</th><th>Maliyet öncesi K/Z</th><th>Maliyet</th><th>Açık</th></tr>`+
    veri.tablo.map((r,i)=>`<tr><td>${i+1}</td><td><span class="nokta" style="background:${R[r.ad]}"></span><span class="ad">${k(r.ad)}</span>${r.kilitli?' <span class="etiket eksi">KİLİTLİ</span>':""}<div class="kaynak">${k(r.baslik)} · <i>${k(r.kaynak)}</i></div></td>
    <td>${s2(r.ozsermaye)}</td><td class="${snf(r.getiri)}">${yz(r.getiri)}</td><td>${s2(r.max_dusus*100,1)}%</td><td>${s2(r.sharpe)}</td><td>${s2(r.sortino)}</td><td>${r.pf==null?"–":s2(r.pf)}</td><td>${r.islem}</td><td>${s2(r.kazanma*100,1)}%</td><td>${r.ort_r==null?"–":s2(r.ort_r)}</td><td class="${snf(r.brut_pnl)}">${s2(r.brut_pnl)}</td><td>${s2(r.maliyet)}</td><td>${r.pozisyonlar.length}</td></tr>`).join("")+"</table>";

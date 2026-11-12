@@ -85,6 +85,24 @@ Uyarılar: yalnız 2 coin; fonlama modellenmedi; 15m görüldükten sonra 4h'ye 
 - Teknik not: `device_commit_files` kopyalamadan hemen sonra çağrılırsa ESKİ içeriği yazabiliyor;
   her eşitlemeden sonra cihazda sha256 karşılaştır.
 
+## 3. tur — kısa aralıklar / scalp (12 Kasım 2026, Burak: "scalp için uygun mu, değilse ayarla; 1m 5m 10m seçenekleri olsun")
+- [x] 12. Aralıklar: 1m 3m 5m 10m 15m 30m 1h 2h 4h 1d; 10m, 5m'den toplanır (`veri.topla`, `TUREV`).
+- [x] 13. Aralığa göre ön ayarlar (`ayar.ON_AYAR`: geçmiş/backtest/canlı başlangıç/DD kilidi gün sayıları);
+  kullanıcının `fuzyon_ayar.json`'da elle yazdığı değerler korunur.
+- [x] 14. Menüde **9) Mum aralığını seç**; `python -m fusion aralik [deger]`; menü üstünde geçerli aralık.
+- [x] 15. Canlı döngü artık her mumda baştan oynatmıyor: `Motor.baslat / ilerle / piyasa_degistir`,
+  stratejilerde `sifirla` (durum) ile `hazirla` (gösterge) ayrıldı, Q-ajan eğitimi önbellekli,
+  CSV okuma önbellekli. İşlenmiş geçmiş değişirse oturum baştan oynatılır. 60.000 mumda yeni sezon.
+  Ölçüm (sahte borsa, 1m, 5 coin, 43.200 mum geçmiş): ilk tur 3,1 sn, sonraki turlar ~0,9 sn.
+- [x] 16. Panelde ve tabloda "maliyet ≈ işlem başına … R" göstergesi (`durum.maliyet_orani`).
+- [x] 17. 352 test yeşil (38'i `tests/test_fusion.py`): 1m ve 10m canlı döngüde adım adım = tek seferde
+  oynatma; aynı Motor nesnesinin korunması; sezon sınırı; 10m toplama; ön ayarlar; aralık komutu.
+- Karar: limit/maker emir modeli ve gerçek emir gönderimi EKLENMEDİ. Bot emir göndermediği için
+  1–5 dakikalık sinyali elle yakalamak pratik değil; maker dolum simülasyonu sonuçları olduğundan
+  iyi gösterebilir. İstenirse ayrı iş olarak ele alınır.
+- 5m ve 1m gerçek veriyle ölçülmedi (Burak'ın klasöründe yalnız 15m ve 4h BTC/ETH var; sanal kabukta
+  internet yok).
+
 ## Sonraki olası işler (istek gelirse)
 - Burak'ın ilk Windows çalıştırmasından gelen hata/çıktıya göre düzeltme
 - Pine derleme hatası çıkarsa düzeltme

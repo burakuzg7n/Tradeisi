@@ -12,8 +12,12 @@ class Strateji:
     kaynak = ""      # ilham alinan proje
     oy_verir = True  # fuzyon oylamasinda yon gorusu sayilir mi
 
+    def sifirla(self) -> None:
+        """Islem durumunu (strateji hafizasini) sifirla. Oturum basinda bir kez cagrilir."""
+
     def hazirla(self, piyasa, k_bas: int, ayar: dict) -> None:
-        """Tum gecmis uzerinde nedensel gostergeleri hesapla. k_bas: degerlendirmenin ilk adimi."""
+        """Tum gecmis uzerinde nedensel gostergeleri hesapla. k_bas: degerlendirmenin ilk adimi.
+        Canli modda her yeni mumda YENIDEN cagrilir: islem durumunu burada sifirlama."""
 
     def bar(self, k: int, hesap, b) -> list:
         """k barinin KAPANISINDA cagrilir; emirler k+1 acilisinda dolar."""

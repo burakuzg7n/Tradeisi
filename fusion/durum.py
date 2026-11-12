@@ -7,6 +7,8 @@ import math
 import os
 import time
 
+import numpy as np
+
 from . import olcum
 from .ayar import cikti_klasoru
 from .veri import degistir
@@ -20,6 +22,24 @@ def _temiz(x):
     if isinstance(x, (list, tuple)):
         return [_temiz(v) for v in x]
     return x
+
+
+def maliyet_orani(sonuc) -> float | None:
+    """Gidis-donus maliyetinin (komisyon + kayma, iki yon) 2 ATR'lik stop mesafesine orani:
+    'islem basina kac R maliyet'. Degerlendirilen donemde, semboller arasi medyan."""
+    p, a = sonuc.piyasa, sonuc.ayar
+    maliyet = 2.0 * (float(a["komisyon_bps"]) + float(a["kayma_bps"])) / 10_000.0
+    oranlar = []
+    for s in p.semboller:
+        i = p.idx[s][sonuc.k_bas:sonuc.k_son + 1]
+        i = i[i >= 0]
+        if len(i) == 0:
+            continue
+        with np.errstate(divide="ignore", invalid="ignore"):
+            atr_orani = p.atr[s][i] / p.barlar[s].c[i]
+        if np.isfinite(atr_orani).any():
+            oranlar.append(maliyet / (2.0 * float(np.nanmedian(atr_orani))))
+    return float(np.median(oranlar)) if oranlar else None
 
 
 def olustur(sonuc, mod: str, not_: str = "") -> dict:
@@ -64,7 +84,7 @@ def olustur(sonuc, mod: str, not_: str = "") -> dict:
         "son_ts": (sonuc.egri_ts[-1] + p.adim_ms) if n else None, "bar_sayisi": n,
         "tablo": tablo, "egri_ts": [sonuc.egri_ts[i] for i in secim], "egriler": egriler,
         "olaylar": sonuc.olaylar[-200:][::-1], "islemler": islemler[:80], "fiyatlar": fiyatlar,
-        "kurul": kurul,
+        "kurul": kurul, "maliyet_r": maliyet_orani(sonuc),
         "ayar": {k: a[k] for k in ("risk_yuzde", "komisyon_bps", "kayma_bps", "short_acik",
                                    "dd_siniri", "max_pozisyon", "max_kaldirac", "fuzyon_oy",
                                    "takip")},
@@ -122,4 +142,8 @@ def tablo_yazdir(durum: dict) -> None:
               f"{r['kazanma'] * 100:>7.1f}% {r['brut_pnl']:>14.2f} {r['maliyet']:>9.2f} "
               f"{len(r['pozisyonlar']):>4}"
               + ("  [KİLİTLİ]" if r["kilitli"] else ""))
+    m = durum.get("maliyet_r")
+    if m is not None:
+        print(f"\nBu aralıkta ({durum['aralik']}) gidiş-dönüş maliyeti, 2 ATR'lik stopun %{m * 100:.0f}'i: "
+              f"işlem başına ≈ {m:.2f} R." + ("  ← maliyet çok yüksek" if m > 0.15 else ""))
     print()

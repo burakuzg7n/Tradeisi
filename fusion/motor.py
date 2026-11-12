@@ -1,8 +1,9 @@
 """Olay motoru + kagit hesap.
 
-Backtest ve canli AYNI kodu kullanir: canli mod, baslangic anindan bugune kadar olan
-barlari her yeni mumda deterministik olarak yeniden oynatir (durum dosyasi gerekmez,
-cokme sonrasi ayni yerden devam eder).
+Backtest ve canli AYNI kodu kullanir. Canli mod acilista baslangic anindan bugune kadar olan
+barlari deterministik olarak yeniden oynatir (durum dosyasi gerekmez, cokme sonrasi ayni yerden
+devam eder); sonraki her yeni mumda yalniz o mumu isler (baslat -> ilerle -> piyasa_degistir ->
+ilerle ...). Adim adim ilerlemek ile tek seferde oynatmak ayni sonucu verir.
 
 Bar k icin sira (her hesapta):
   1) k-1 kapanisinda verilen emirler k barinin ACILISINDA dolar (kayma + komisyon)
@@ -96,13 +97,21 @@ class Sonuc:
 
 class Motor:
     def __init__(self, piyasa: Piyasa, stratejiler: list, ayar: dict):
-        self.p = piyasa
         self.stratejiler = stratejiler
         self.a = ayar
         self.kom = float(ayar["komisyon_bps"]) / 10_000.0
         self.kayma = float(ayar["kayma_bps"]) / 10_000.0
         self.kilit_bar = int(ayar.get("dd_kilit_bar") or
                              max(1, round(float(ayar["dd_kilit_gun"]) * 86_400_000 / piyasa.adim_ms)))
+        self._veri_kur(piyasa)
+        self.olaylar: list = []
+        self.hesaplar: dict = {}
+        self.b: Baglam | None = None
+        self.k_bas = 0
+        self.k_sonraki = 0
+
+    def _veri_kur(self, piyasa: Piyasa) -> None:
+        self.p = piyasa
         self.T = piyasa.T.tolist()
         self.idx = {s: piyasa.idx[s].tolist() for s in piyasa.semboller}
         self.o = {s: piyasa.barlar[s].o.tolist() for s in piyasa.semboller}
@@ -110,7 +119,6 @@ class Motor:
         self.l = {s: piyasa.barlar[s].l.tolist() for s in piyasa.semboller}
         self.c = {s: piyasa.barlar[s].c.tolist() for s in piyasa.semboller}
         self.atr = {s: piyasa.atr[s].tolist() for s in piyasa.semboller}
-        self.olaylar: list = []
 
     # ------------------------------------------------------------------ olay
     def _olay(self, ts: int, k: int, hesap: Hesap, tur: str, sembol: str, yon: int,
@@ -272,22 +280,39 @@ class Motor:
                        f"dusus %{dusus * 100:.1f} >= sinir; {self.kilit_bar} bar yeni giris yok")
 
     # ------------------------------------------------------------------- kos
-    def kos(self, k_bas: int, k_son: int | None = None) -> Sonuc:
+    def baslat(self, k_bas: int) -> None:
+        """Hesaplari ve strateji durumlarini sifirlar; ilk islenecek adim k_bas olur."""
         p, a = self.p, self.a
-        k_son = len(self.T) - 1 if k_son is None else min(k_son, len(self.T) - 1)
-        k_bas = max(0, min(k_bas, k_son))
+        self.k_bas = max(0, min(k_bas, len(self.T) - 1))
+        self.k_sonraki = self.k_bas
         sermaye = float(a["baslangic_sermaye"])
-        hesaplar = {s.ad: Hesap(s.ad, sermaye, son_oz=sermaye, tepe=sermaye) for s in self.stratejiler}
-        b = Baglam(p, a, hesaplar, self.idx, self.h, self.l, self.c, self.atr,
-                   frozenset(s.ad for s in self.stratejiler if getattr(s, "oy_verir", True)))
+        self.hesaplar = {s.ad: Hesap(s.ad, sermaye, son_oz=sermaye, tepe=sermaye)
+                         for s in self.stratejiler}
+        self.b = Baglam(p, a, self.hesaplar, self.idx, self.h, self.l, self.c, self.atr,
+                        frozenset(s.ad for s in self.stratejiler if getattr(s, "oy_verir", True)))
         for s in self.stratejiler:
-            s.hazirla(p, k_bas, a)
+            s.sifirla()
+            s.hazirla(p, self.k_bas, a)
         self.olaylar = []
+
+    def piyasa_degistir(self, piyasa: Piyasa) -> None:
+        """Sonuna yeni mum eklenmis piyasaya gecer (islenmis adimlar ayni kalmalidir).
+        Gostergeler yeniden hesaplanir; hesaplar ve strateji durumlari korunur."""
+        self._veri_kur(piyasa)
+        b = self.b
+        b.piyasa, b.idx, b.h, b.l, b.c, b.atr = piyasa, self.idx, self.h, self.l, self.c, self.atr
+        for s in self.stratejiler:
+            s.hazirla(piyasa, self.k_bas, self.a)
+
+    def ilerle(self, k_son: int | None = None) -> Sonuc:
+        """k_sonraki'den k_son'a (varsayilan: son mum) kadar isler."""
+        p, b = self.p, self.b
+        k_son = len(self.T) - 1 if k_son is None else min(k_son, len(self.T) - 1)
         kapanis_farki = p.adim_ms
-        for k in range(k_bas, k_son + 1):
+        for k in range(self.k_sonraki, k_son + 1):
             b.k = k
             for s in self.stratejiler:
-                h = hesaplar[s.ad]
+                h = self.hesaplar[s.ad]
                 self._dolum(h, k)
                 self._bar_ici(h, k)
                 self._degerle(h, k)
@@ -304,5 +329,11 @@ class Motor:
                     h.bekleyen[e.sembol] = e
                     self._olay(self.T[k] + kapanis_farki, k, h, "SINYAL", e.sembol, e.yon, fiyat,
                                e.neden, stop_mesafe=e.stop_mesafe, kar_mesafe=e.kar_mesafe)
-        return Sonuc(p, a, self.stratejiler, hesaplar, self.olaylar, k_bas, k_son,
-                     self.T[k_bas:k_son + 1])
+        self.k_sonraki = max(self.k_sonraki, k_son + 1)
+        return Sonuc(p, self.a, self.stratejiler, self.hesaplar, self.olaylar, self.k_bas,
+                     self.k_sonraki - 1, self.T[self.k_bas:self.k_sonraki])
+
+    def kos(self, k_bas: int, k_son: int | None = None) -> Sonuc:
+        """Tek seferde: baslat + ilerle."""
+        self.baslat(k_bas)
+        return self.ilerle(k_son)

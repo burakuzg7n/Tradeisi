@@ -19,6 +19,39 @@ protokolünden (AGENTS.md) geçmemiştir; sonuçların değerlendirmesi Burak'a 
 
 İnternetsiz denemek için **7** (demo, uydurma veri).
 
+## Mum aralığı seçimi (scalp dahil)
+Menüde **9** → aralığı yaz: `1m 3m 5m 10m 15m 30m 1h 2h 4h 1d`. Seçim `fuzyon_ayar.json` dosyasına
+kaydedilir; menünün üstünde geçerli aralık görünür. Aralık değişince önce **2** (veri indir), sonra
+**3** ya da **4**. Canlı kâğıt hesaplar yeni aralıkta baştan başlar.
+
+| Aralık | İndirilen geçmiş | Backtest dönemi | Canlı mod başlangıcı |
+|---|---|---|---|
+| 1m | 30 gün | son 10 gün | son 1 gün |
+| 3m | 75 gün | son 25 gün | son 2 gün |
+| 5m | 150 gün | son 60 gün | son 3 gün |
+| 10m | 300 gün | son 120 gün | son 5 gün |
+| 15m | 500 gün | son 240 gün | son 7 gün |
+| 30m | 800 gün | son 365 gün | son 14 gün |
+| 1h | 1500 gün | son 600 gün | son 21 gün |
+| 2h, 4h | 1500 gün | son 730 gün | son 30 gün |
+| 1d | 3000 gün | son 1500 gün | son 120 gün |
+
+- 10 dakikalık mum Binance'te yoktur; 5 dakikalık mumlardan toplanarak üretilir.
+- Canlı mod açılışta geçmişi bir kez oynatır, sonra her yeni mumda yalnız o mumu işler
+  (1 dakikalıkta 5 coinle tur başına yaklaşık 1 saniye + indirme süresi).
+- Canlı oturum 60.000 mumu aşınca (1m'de ~42 gün) "yeni sezon" başlar: son tablo
+  `out/fusion/sezon_NNN.json` olarak arşivlenir, kâğıt hesaplar baştan başlar.
+- Panelin üstündeki **maliyet ≈ işlem başına … R** rozeti ve backtest tablosunun altındaki satır,
+  seçtiğin aralıkta gidiş-dönüş maliyetinin 2 ATR'lik stopa oranını gösterir. 0,15 R üstü kırmızıdır.
+
+**Scalp için bilinmesi gerekenler:**
+- Ölçülen: 15 dakikada maliyet işlem başına 0,16–0,24 R; 8 stratejinin 8'i son 1 yılda ekside.
+  Daha kısa aralıkta stop mesafesi küçüldüğü için oran daha da büyür (5m ve 1m için henüz veri
+  indirilmedi; rozet indirdikten sonra gerçek değeri gösterir).
+- Bot emir göndermez. 1–5 dakikalık sinyal mum kapanışından birkaç saniye sonra gelir; bunu elle
+  yakalamak pratikte mümkün değildir. Kısa aralık bu haliyle kâğıt üstünde izleme içindir.
+- Tek seferlik deneme için dosyayı değiştirmeden: `python -m fusion backtest --aralik 5m`.
+
 ## Hangi projeden ne alındı
 | Proje | Alınan fikir | Dosya |
 |---|---|---|
@@ -66,8 +99,9 @@ Dosya `fusion/kurallar/` altına yazılır; silmek için dosyayı sil ya da içi
 - Stoplu işlemlerde boyut: özsermayenin %1'i / stop mesafesi; tek pozisyon nominali ≤ özsermaye;
   tüm açık pozisyonların toplam nominali ≤ 3 × özsermaye (`max_kaldirac`).
 - Short açıktır ve vadeli gibi kâğıt üzerinde yürür; **fonlama ücreti modellenmez**.
-- Hesap %25 düşerse 7 gün yeni giriş almaz.
-- Canlı kâğıt mod ilk açılışta son 30 günü oynatarak başlar; sinyaller yalnız yeni mumlar için iletilir.
+- Hesap %25 düşerse aralığa göre 1–14 gün (4h'de 7 gün) yeni giriş almaz.
+- Canlı kâğıt mod ilk açılışta yakın geçmişi (4h'de son 30 gün) oynatarak başlar; sinyaller yalnız
+  yeni mumlar için iletilir.
 - Mumun kapanıp kapanmadığı Binance saatine göre belirlenir (bilgisayar saati kayık olsa da).
 - Dolmayacağı belli olan (bekleme, kilit, kapasite) ya da yinelenen emirler sinyal olarak yayımlanmaz.
 
@@ -82,9 +116,8 @@ son 2 yılın medyanıyla 2 ATR'lik stop mesafesine oranı:
 
 15 dakikada her işlem daha başlamadan riskin beşte birini–dörtte birini maliyete verir; yılda
 1.000+ işlemde bu, sermayenin büyük kısmıdır. Varsayılan bu aritmetikle 4 saate alındı.
-Başka aralık denemek için: `python -m fusion veri --aralik 1h` ve `python -m fusion backtest --aralik 1h`
-(ya da `fuzyon_ayar.json` içinde `"aralik"`). Gösterge periyotları bar sayısıdır; aralık değişince
-süre karşılıkları da değişir.
+Başka aralık için menüde **9** (bkz. "Mum aralığı seçimi"). Gösterge periyotları bar sayısıdır;
+aralık değişince süre karşılıkları da değişir.
 
 ## Ayarlar
 `Fuzyon.bat → 8` kökte `fuzyon_ayar.json` oluşturur (semboller, aralık, sermaye, risk, komisyon,

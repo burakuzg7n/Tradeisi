@@ -21,9 +21,14 @@ class OranRotasyon(Strateji):
     marj = 0.008       # asil botun varsayilan scout_margin degeri (%0,8)
     agirlik = 0.95
 
-    def hazirla(self, piyasa, k_bas, ayar):
+    def __init__(self):
+        self.sifirla()
+
+    def sifirla(self):
         self.esik = {}         # (a, b) -> a/b esik orani
         self.elde = None
+
+    def hazirla(self, piyasa, k_bas, ayar):
         tek = (ayar["komisyon_bps"] + ayar["kayma_bps"]) / 10_000.0
         self.islem_ucreti = tek + tek - tek * tek     # sat + al
 

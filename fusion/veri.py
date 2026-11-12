@@ -17,8 +17,11 @@ import numpy as np
 
 from . import gostergeler as g
 
-ARALIK_MS = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
-             "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
+ARALIK_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "10m": 600_000, "15m": 900_000,
+             "30m": 1_800_000, "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000,
+             "1d": 86_400_000}
+# Binance'te hazir olmayan araliklar daha kucuk bir araliktan toplanarak uretilir
+TUREV = {"10m": "5m"}
 # Yalniz Binance'in resmi acik veri uclari
 SUNUCULAR = ("https://api.binance.com", "https://data-api.binance.vision",
              "https://api1.binance.com", "https://api-gcp.binance.com")
@@ -88,14 +91,56 @@ def csv_yolu(sembol: str, aralik: str, klasor: str | None = None) -> str:
     return os.path.join(veri_klasoru(klasor), f"{sembol}_{aralik}.csv")
 
 
+_ONBELLEK: dict = {}     # yol -> ((mtime_ns, boyut), Bars); kisa araliklarda her turda yeniden okumamak icin
+
+
+def _onbellege_koy(yol: str, bars: Bars) -> None:
+    try:
+        st = os.stat(yol)
+        _ONBELLEK[yol] = ((st.st_mtime_ns, st.st_size), bars)
+    except OSError:
+        _ONBELLEK.pop(yol, None)
+
+
 def csv_oku(yol: str) -> Bars:
-    if not os.path.exists(yol):
+    """Dondurulen Bars onbellekte paylasilir: cagiran dizileri DEGISTIRMEMELIDIR."""
+    try:
+        st = os.stat(yol)
+    except OSError:
         return Bars.bos()
+    kayit = _ONBELLEK.get(yol)
+    if kayit is not None and kayit[0] == (st.st_mtime_ns, st.st_size):
+        return kayit[1]
     try:
         a = np.loadtxt(yol, delimiter=",", skiprows=1, ndmin=2)
     except ValueError:
         return Bars.bos()
-    return Bars.satirlardan(a[:, :6]) if a.size else Bars.bos()
+    bars = Bars.satirlardan(a[:, :6]) if a.size else Bars.bos()
+    _ONBELLEK[yol] = ((st.st_mtime_ns, st.st_size), bars)
+    return bars
+
+
+def topla(bars: Bars, kaynak_adim: int, hedef_adim: int) -> Bars:
+    """Kucuk mumlari buyuk muma toplar (ornek 5m -> 10m). Yalniz KAPANMIS hedef mumlar doner:
+    son grubun kapanisi, eldeki son kucuk mumun kapanisindan sonraysa o grup atilir."""
+    if len(bars) == 0:
+        return Bars.bos()
+    grup = bars.ts // hedef_adim
+    bas = np.flatnonzero(np.diff(grup, prepend=grup[0] - 1))
+    son = np.append(bas[1:], len(bars)) - 1
+    out = Bars(grup[bas] * hedef_adim, bars.o[bas].copy(), np.maximum.reduceat(bars.h, bas),
+               np.minimum.reduceat(bars.l, bas), bars.c[son].copy(), np.add.reduceat(bars.v, bas))
+    if int(out.ts[-1]) + hedef_adim > int(bars.ts[-1]) + kaynak_adim:
+        out = Bars(out.ts[:-1], out.o[:-1], out.h[:-1], out.l[:-1], out.c[:-1], out.v[:-1])
+    return out
+
+
+def oku(sembol: str, aralik: str, klasor: str | None = None) -> Bars:
+    """Onbellekteki mumlar; turetilmis araliklar (10m) taban araliktan toplanir."""
+    taban = TUREV.get(aralik)
+    if taban is None:
+        return csv_oku(csv_yolu(sembol, aralik, klasor))
+    return topla(csv_oku(csv_yolu(sembol, taban, klasor)), ARALIK_MS[taban], ARALIK_MS[aralik])
 
 
 def _satir_yaz(f, bars: Bars) -> None:
@@ -110,6 +155,7 @@ def csv_yaz(yol: str, bars: Bars) -> None:
         f.write("timestamp,open,high,low,close,volume\n")
         _satir_yaz(f, bars)
     degistir(gecici, yol)
+    _onbellege_koy(yol, bars)
 
 
 def csv_ekle(yol: str, yeni: Bars) -> None:
@@ -207,6 +253,10 @@ def binance_mumlar(sembol: str, aralik: str, bas_ms: int, son_ms: int | None = N
 def guncelle(sembol: str, aralik: str, gecmis_gun: int, klasor: str | None = None,
              ilerleme=None) -> Bars:
     """CSV onbellegini Binance'ten tamamlar (yalniz sona ekler; baslangic sabit kalir)."""
+    taban = TUREV.get(aralik)
+    if taban is not None:
+        return topla(guncelle(sembol, taban, gecmis_gun, klasor, ilerleme),
+                     ARALIK_MS[taban], ARALIK_MS[aralik])
     yol = csv_yolu(sembol, aralik, klasor)
     eski = csv_oku(yol)
     adim = ARALIK_MS[aralik]
@@ -227,7 +277,9 @@ def guncelle(sembol: str, aralik: str, gecmis_gun: int, klasor: str | None = Non
     if len(yeni) == 0:
         return eski
     csv_ekle(yol, yeni)
-    return Bars.satirlardan(np.vstack([eski.satirlar(), yeni.satirlar()]))
+    hepsi = Bars.satirlardan(np.vstack([eski.satirlar(), yeni.satirlar()]))
+    _onbellege_koy(yol, hepsi)
+    return hepsi
 
 
 def hepsini_guncelle(semboller, aralik: str, gecmis_gun: int, klasor: str | None = None,
@@ -334,7 +386,7 @@ def piyasa_yukle(semboller, aralik: str, klasor: str | None = None, sentetik_mi:
                  sentetik_n: int = 6000) -> Piyasa:
     barlar = {}
     for s in semboller:
-        barlar[s] = sentetik(s, sentetik_n, aralik) if sentetik_mi else csv_oku(csv_yolu(s, aralik, klasor))
+        barlar[s] = sentetik(s, sentetik_n, aralik) if sentetik_mi else oku(s, aralik, klasor)
     return Piyasa(barlar, aralik)
 
 
