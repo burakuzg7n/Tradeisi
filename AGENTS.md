@@ -40,19 +40,21 @@ geçerlidir.
   §8/§9 ifadesini o noktada değiştirir. Sonuç görüldükten sonra değiştirilemez;
   değişiklik = yeni versiyon.
 
-## Rol dağılımı (9 Kasım 2026 — Burak'ın kararı; 3 Kasım dağılımının yerine geçer)
+## Rol dağılımı (12 Kasım 2026 — Burak'ın kararı; 9 Kasım dağılımının yerine geçer)
 - **Claude:** araştırma önerisi, tasarım, kod ve test uygulaması; değişiklikleri
   `claude/...` dalında Pull Request olarak hazırlar.
-- **ChatGPT:** bağımsız kod/mantık, rapor ve doküman denetimi; spesifikasyon,
-  lookahead, maliyetler, sınır durumları ve test kapsamını kontrol eder.
-- Uygulayıcının kendi testleri bağımsız denetim sayılmaz. Denetçinin mutasyon
-  testleri ayrı geçici kopyada yapılır; incelenen dal değiştirilmez.
-- **Burak:** yeni aday/gerçek veri koşusu kararını ve merge kararını verir.
-- Rol devri yeni strateji veya gerçek veri koşusu izni değildir. Retler, kilitler,
-  hold-out yasakları ve `docs/KARAR_NOTU_C_2026-11-02.md` kapsamı korunur.
-- Gerçek veri koşucuları denetim sırasında çalıştırılmaz; izin verilmiş bir koşu
-  Burak'ın makinesinde yürütülür. Sentetik testler gerçek tek atıştan ayrıdır.
-- Gemini şu an projede YOK (pasif).
+- **Burak:** yön kararını, sonuçların kâr/zarar değerlendirmesini ve merge kararını verir.
+- **ChatGPT ve Gemini şu an projede YOK** (12 Kasım 2026'da Burak süreçten çıkardı).
+  Bağımsız denetçi olmadığı için uygulayıcının kendi testleri bağımsız denetim sayılmaz;
+  bu açık bir eksiktir ve raporlarda böyle anılır.
+- Rol değişikliği önceki retleri, kilitleri ve hold-out yasaklarını kaldırmaz.
+
+## Füzyon Arena (`fusion/`, 12 Kasım 2026)
+- Burak'ın isteğiyle yazılan çok stratejili **kâğıt-işlem** programıdır; gerçek emir göndermez.
+- İçindeki stratejiler tek atış protokolünden GEÇMEMİŞTİR; çıktıları kapı kararı (GEÇTİ/RED)
+  değildir ve "onaylı strateji" diye sunulmaz. Kılavuz: `docs/FUZYON.md`,
+  devam notu: `docs/FUZYON_DEVAM.md`.
+- Kural 7 geçerlidir: ilham alınan projelerden kod kopyalanmaz.
 
 ## Dal (branch) düzeni
 - `main`: yalnız onaylı ve testten geçmiş kod.

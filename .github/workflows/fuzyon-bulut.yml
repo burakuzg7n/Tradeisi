@@ -1,0 +1,59 @@
+# Fuzyon Arena - bulutta kagit islem (bilgisayar kapaliyken de calisir)
+# Her calismada 4h ve 1h icin TEK tur atar, yeni sinyalleri Telegram'a yollar, /durum komutunu yanitlar.
+# Gercek emir GONDERMEZ. Kurulum: docs/FUZYON.md > "Bulutta calistirma".
+# Gerekli gizli degerler (Settings > Secrets and variables > Actions): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+name: fuzyon-bulut
+
+on:
+  schedule:
+    - cron: "4,34 * * * *"     # saatte iki kez (UTC); GitHub zamanlamasi birkac dakika gecikebilir
+  workflow_dispatch:
+
+concurrency:
+  group: fuzyon-bulut
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write               # eski durum onbelleklerini silebilmek icin
+
+jobs:
+  tur:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy
+      - name: Onceki durumu geri yukle (veri + kagit hesaplarin baslangic kaydi)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data
+            out/fusion
+          key: fuzyon-durum-${{ github.run_id }}
+          restore-keys: fuzyon-durum-
+      - name: Tur
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PYTHONIOENCODING: utf-8
+        run: python -m fusion bulut --araliklar 4h,1h
+      - name: Durumu kaydet
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data
+            out/fusion
+          key: fuzyon-durum-${{ github.run_id }}
+      - name: Eski durum onbelleklerini sil (en yeni 2 kalsin)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache list --repo "$GITHUB_REPOSITORY" --key fuzyon-durum- --sort created_at --order desc --limit 100 --json id --jq '.[2:][].id' \
+            | xargs -r -n1 gh cache delete --repo "$GITHUB_REPOSITORY" || true
