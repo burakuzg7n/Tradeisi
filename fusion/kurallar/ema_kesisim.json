@@ -1,0 +1,10 @@
+{
+  "ad": "ema_kesisim",
+  "aciklama": "EMA 20/50 kesişimi, EMA 200 yön filtresi",
+  "long_giris": "cross_up(ema(20), ema(50)) and close > ema(200)",
+  "long_cikis": "cross_down(ema(20), ema(50))",
+  "short_giris": "cross_down(ema(20), ema(50)) and close < ema(200)",
+  "short_cikis": "cross_up(ema(20), ema(50))",
+  "stop_atr": 2.5,
+  "kar_atr": 0
+}

@@ -1,0 +1,10 @@
+{
+  "ad": "hacim_patlamasi",
+  "aciklama": "Hacim patlamasıyla gelen 48 barlık zirve/dip kırılımı",
+  "long_giris": "close > highest(48)[1] and volume > 2 * sma(volume, 48) and close > open",
+  "long_cikis": "close < ema(20)",
+  "short_giris": "close < lowest(48)[1] and volume > 2 * sma(volume, 48) and close < open",
+  "short_cikis": "close > ema(20)",
+  "stop_atr": 2.0,
+  "kar_atr": 4.0
+}
