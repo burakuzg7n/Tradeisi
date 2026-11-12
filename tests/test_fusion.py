@@ -219,3 +219,190 @@ def test_csv_gidis_donus(tmp_path):
     c = veri.csv_oku(yol)
     np.testing.assert_array_equal(b.ts, c.ts)
     np.testing.assert_array_equal(b.c, c.c)
+
+
+# ------------------------------------------------- 2. denetim turu (12 Kas 2026)
+def test_pencere_bloklu_hesap_ayni_sonuc(monkeypatch):
+    x = np.cumsum(np.random.default_rng(3).normal(0, 1, 3000)) + 50
+    tam = [g.median(x, 672), g.std(x, 96), g.highest(x, 20), g.sma(x, 7)]
+    monkeypatch.setattr(g, "BLOK_ELEMAN", 700)       # cok kucuk bloklara zorla
+    for a, b in zip(tam, [g.median(x, 672), g.std(x, 96), g.highest(x, 20), g.sma(x, 7)]):
+        np.testing.assert_allclose(a, b, equal_nan=True)
+
+
+def _sahte_binance(monkeypatch, sunucu_simdi):
+    cagri = {"n": 0}
+
+    def sahte(url, zaman_asimi=20.0):
+        from urllib.parse import parse_qs, urlparse
+        u = urlparse(url)
+        if u.path.endswith("/time"):
+            return {"serverTime": sunucu_simdi}
+        q = parse_qs(u.query)
+        bas, limit = int(q["startTime"][0]), int(q["limit"][0])
+        ilk = -(-bas // ADIM) * ADIM
+        cagri["n"] += 1
+        out = []
+        t = ilk
+        while t <= sunucu_simdi and len(out) < limit:      # son satir: henuz KAPANMAMIS mum
+            out.append([t, "100.0", "101.0", "99.0", "100.5", "12.5", t + ADIM - 1])
+            t += ADIM
+        return out
+
+    monkeypatch.setattr(veri, "_http_json", sahte)
+    monkeypatch.setattr(veri.time, "sleep", lambda s: None)
+    return cagri
+
+
+def test_binance_indirme_sayfalar_ve_kapanmamis_mumu_almaz(monkeypatch):
+    sunucu_simdi = T0 + 2500 * ADIM + 400_000              # 2501. mumun ortasi
+    cagri = _sahte_binance(monkeypatch, sunucu_simdi)
+    monkeypatch.setattr(veri, "simdi_ms", lambda: sunucu_simdi)
+    b = veri.binance_mumlar("BTCUSDT", "15m", T0)
+    assert len(b) == 2500 and cagri["n"] == 3               # 1000 + 1000 + 501 (sonuncusu acik mum)
+    assert int(b.ts[0]) == T0 and int(b.ts[-1]) == T0 + 2499 * ADIM
+    assert np.all(np.diff(b.ts) == ADIM)
+
+
+def test_bilgisayar_saati_ileriyse_acik_mum_kapandi_sayilmaz(monkeypatch):
+    """Bilgisayar saati 2 dk ileride: yerel saate gore mum 'kapanmis' gorunur ama alinmamali."""
+    sunucu_simdi = T0 + 10 * ADIM + 880_000                 # 11. mumun bitmesine 20 sn var
+    _sahte_binance(monkeypatch, sunucu_simdi)
+    monkeypatch.setattr(veri.time, "time", lambda: (sunucu_simdi + 120_000) / 1000.0)
+    monkeypatch.setitem(veri._SAAT, "okundu", 0.0)
+    monkeypatch.setitem(veri._SAAT, "fark", 0)
+    assert abs(veri.sunucu_farki(yenile=True) + 120_000) < 50
+    b = veri.binance_mumlar("BTCUSDT", "15m", T0)
+    assert len(b) == 10 and int(b.ts[-1]) == T0 + 9 * ADIM
+
+
+def test_guncelle_dosyanin_sonuna_ekler(tmp_path, monkeypatch):
+    tam = veri.sentetik("X", 30)
+    yol = veri.csv_yolu("X", "15m", str(tmp_path))
+    veri.csv_yaz(yol, tam.kes(son_ts=int(tam.ts[19])))
+    with open(yol, "rb+") as f:                              # son satir sonu eksik dosya
+        f.seek(-1, 2)
+        f.truncate()
+    monkeypatch.setattr(veri, "simdi_ms", lambda: int(tam.ts[-1]) + ADIM)
+    monkeypatch.setattr(veri, "binance_mumlar",
+                        lambda s, ar, bas, ilerleme=None: tam.kes(bas_ts=int(tam.ts[18])))  # 2 mum cakisik
+    boyut = len(open(yol, "rb").read())
+    b = veri.guncelle("X", "15m", 10, str(tmp_path))
+    okunan = veri.csv_oku(yol)
+    assert len(b) == len(okunan) == 30 and len(open(yol, "rb").read()) > boyut
+    np.testing.assert_array_equal(okunan.ts, tam.ts)
+    np.testing.assert_array_equal(okunan.c, tam.c)
+    assert open(yol, encoding="utf-8").read().count("timestamp") == 1
+
+
+def _duz(fiyatlar):
+    return _bars([(f, f, f, f) for f in fiyatlar])
+
+
+def test_rotasyon_asil_botun_esik_mantigi(tmp_path):
+    from fusion.stratejiler.rotasyon import OranRotasyon
+    n = 12
+    p = Piyasa({"AAA": _duz([100.0] * n), "BBB": _duz([100.0] * 5 + [94.0] * (n - 5)),
+                "CCC": _duz([100.0] * n)}, "15m")
+    s = OranRotasyon()
+    h = Motor(p, [s], _ayar(tmp_path, komisyon_bps=5.0, kayma_bps=2.0)).kos(0).hesaplar["oran_rotasyon"]
+    assert list(h.poz) == ["BBB"] and [t["sembol"] for t in h.islemler] == ["AAA"]
+    assert s.esik[("AAA", "BBB")] == pytest.approx(100 / 94)   # BBB'ye GIDEN ciftler guncellendi
+    assert s.esik[("CCC", "BBB")] == pytest.approx(100 / 94)
+    assert s.esik[("BBB", "AAA")] == 1.0                        # BBB'den cikan ciftler ayni kaldi
+    assert s.oy_verir is False
+
+
+def test_kirilim_izleyen_stop_kapanisla_cikar(tmp_path):
+    from fusion.stratejiler.kirilim import Kirilim
+    c = [100 + 0.1 * i for i in range(75)]
+    c += [c[-1] - 0.6, c[-1] - 0.6, c[-1] - 0.6]             # zirveden 3 ATR'den fazla dusus (kapanis)
+    satirlar = [((c[i - 1] if i else c[0]), c[i] + 0.05, c[i] - 0.05, c[i]) for i in range(len(c))]
+    p = Piyasa({"AAA": _bars(satirlar)}, "15m")
+    h = Motor(p, [Kirilim()], _ayar(tmp_path)).kos(0).hesaplar["kirilim"]
+    t = h.islemler[0]
+    assert t["yon"] == 1 and t["cikis_neden"] == "izleyen stop (kapanış)"
+    koruyucu = t["giris"] - 3 * 0.15
+    assert t["cikis"] > koruyucu and t["cikis"] > t["giris"]   # bar-ici koruyucu stop degil, iz suren cikis
+
+
+def test_toplam_kaldirac_tavani(tmp_path):
+    b = _bars([(100, 101, 99, 100)] * 5)
+    p = Piyasa({"AAA": b, "BBB": b}, "15m")
+    plan = {0: [Emir("AAA", 1, agirlik=1.0), Emir("BBB", 1, agirlik=1.0)]}
+    h = Motor(p, [Senaryo(plan)], _ayar(tmp_path, max_kaldirac=1.0)).kos(0).hesaplar["senaryo"]
+    assert list(h.poz) == ["AAA"]
+    h2 = Motor(p, [Senaryo(plan)], _ayar(tmp_path, max_kaldirac=1.6)).kos(0).hesaplar["senaryo"]
+    brut = sum(abs(q.adet) * q.son_fiyat for q in h2.poz.values())
+    assert len(h2.poz) == 2 and brut == pytest.approx(1600.0, rel=1e-6)
+
+
+def test_bekleme_surerken_sinyal_tekrarlanmaz(tmp_path):
+    satirlar = [(100, 101, 99, 100), (100, 100.5, 99.5, 100), (100, 100, 97, 97.5)] + [(97.5, 98, 97, 97.5)] * 6
+    p = Piyasa({"AAA": _bars(satirlar)}, "15m")
+    plan = {k: [Emir("AAA", 1, stop_mesafe=2.0)] for k in range(0, 8)}
+    r = Motor(p, [Senaryo(plan)], _ayar(tmp_path, bekleme_bar=8)).kos(0)
+    assert len(r.hesaplar["senaryo"].islemler) == 1
+    assert sum(1 for o in r.olaylar if o["tur"] == "SINYAL") == 1
+
+
+def test_fuzyon_rotasyonu_oy_saymaz(tmp_path):
+    a, p = _arena(tmp_path, n=3000)
+    r = Motor(p, stratejiler.hepsi(a), a).kos(2500)
+    for o in r.olaylar:
+        if o["strateji"] == "fuzyon" and o["tur"] == "SINYAL":
+            assert "oran_rotasyon" not in o["neden"]
+
+
+def test_kirpma_yeniden_oynatmayi_degistirmez(tmp_path, monkeypatch):
+    """Sona yeni mum eklenince (kesim noktasi sabit) onceki sonuc aynen kalmali."""
+    monkeypatch.setattr(veri, "ISINMA_BAR", 1500)
+    a, p = _arena(tmp_path, n=5000)
+    bas = int(p.T[4000])
+    kisa = Piyasa({s: b.kes(son_ts=int(p.T[4499])) for s, b in p.barlar.items()}, "15m")
+    sonuclar = []
+    for piyasa in (p, kisa):
+        k = veri.kirp(piyasa, bas)
+        assert len(k.T) == len(piyasa.T) - 2500
+        sonuclar.append(Motor(k, stratejiler.hepsi(a), a).kos(k.k_bul(bas)))
+    for ad in sonuclar[0].hesaplar:
+        assert sonuclar[0].hesaplar[ad].egri[:500] == sonuclar[1].hesaplar[ad].egri, ad
+
+
+def test_panel_http(tmp_path):
+    import threading
+    import urllib.request
+    from fusion import panel
+    a = _ayar(tmp_path, panel_port=0)
+    s = panel.sunucu(a)
+    threading.Thread(target=s.serve_forever, daemon=True).start()
+    try:
+        kok = f"http://127.0.0.1:{s.server_address[1]}"
+        assert "Füzyon Arena" in urllib.request.urlopen(kok + "/").read().decode("utf-8")
+        assert json.load(urllib.request.urlopen(kok + "/api/durum?mod=canli")) == {"yok": True}
+        _, p = _arena(tmp_path, n=2500)
+        durum.yaz(durum.olustur(Motor(p, stratejiler.hepsi(a), a).kos(2000), "backtest"), a, "backtest")
+        d = json.load(urllib.request.urlopen(kok + "/api/durum?mod=backtest"))
+        assert d["mod"] == "backtest" and "brut_pnl" in d["tablo"][0] and "maliyet" in d["tablo"][0]
+        assert json.load(urllib.request.urlopen(kok + "/api/durum?mod=../../x")) == {"yok": True}
+    finally:
+        s.shutdown()
+        s.server_close()
+
+
+def test_rastgele_yuruyuste_sistematik_kazanc_yok(tmp_path):
+    """Motorun dolum mantigi iyimser olsaydi, yonsuz rastgele yuruyuste ve sifir maliyetle
+    ortalama kazanc sifirdan anlamli bicimde buyuk cikardi. 40 farkli tohumda cikmamali."""
+    from fusion.stratejiler.kirilim import Kirilim
+    from fusion.stratejiler.kurul import AjanKurulu
+    a = _ayar(tmp_path, dd_siniri=0.99)
+    sonuc = {"ajan_kurulu": [], "kirilim": []}
+    for tohum in range(40):
+        barlar = {s: veri.sentetik(s, 3000, tohum=300 + tohum, ara_adim=96) for s in ("AAA", "BBB", "CCC")}
+        r = Motor(Piyasa(barlar, "15m"), [AjanKurulu(), Kirilim()], a).kos(800)
+        for ad in sonuc:
+            sonuc[ad].append(r.hesaplar[ad].son_oz - 1000.0)
+    for ad, v in sonuc.items():
+        v = np.array(v)
+        t = v.mean() / (v.std(ddof=1) / np.sqrt(len(v)))
+        assert abs(t) < 3.0, (ad, round(float(v.mean()), 2), round(float(t), 2))

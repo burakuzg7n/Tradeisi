@@ -10,6 +10,7 @@ class Strateji:
     ad = "strateji"
     baslik = ""
     kaynak = ""      # ilham alinan proje
+    oy_verir = True  # fuzyon oylamasinda yon gorusu sayilir mi
 
     def hazirla(self, piyasa, k_bas: int, ayar: dict) -> None:
         """Tum gecmis uzerinde nedensel gostergeleri hesapla. k_bas: degerlendirmenin ilk adimi."""

@@ -15,6 +15,7 @@ VARSAYILAN = {
     "baslangic_sermaye": 1000.0,  # her stratejinin kagit hesabi (USDT)
     "risk_yuzde": 1.0,          # stoplu islemlerde islem basi risk (ozsermaye %)
     "poz_tavan": 1.0,           # tek pozisyonun en buyuk nominali (ozsermaye kati)
+    "max_kaldirac": 3.0,        # tum acik pozisyonlarin toplam nominali (ozsermaye kati)
     "max_pozisyon": 5,
     "short_acik": True,         # short = vadeli gibi kagit islem (fonlama modellenmez)
     "komisyon_bps": 5.0,        # her dolumda, nominal uzerinden

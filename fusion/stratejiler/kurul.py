@@ -40,8 +40,7 @@ class AjanKurulu(DiziStrateji):
             momentum = np.clip((g.rsi(c, 14) - 50.0) / 25.0, -1, 1)
             hacim = np.clip(g.zscore(bars.v, 96) / 2.0, 0, 1) * np.sign(c - bars.o)
             piyasa_p = piyasa.hizala(self._ref, sembol, self._rejim)
-            oyn = atr / c
-            oyn_oran = oyn / g.median(oyn, 672)
+            oyn_oran = piyasa.oyn_orani(sembol)
         net = (AGIRLIK["trend"] * trend + AGIRLIK["momentum"] * momentum
                + AGIRLIK["hacim"] * hacim + AGIRLIK["piyasa"] * piyasa_p)
         with np.errstate(invalid="ignore"):

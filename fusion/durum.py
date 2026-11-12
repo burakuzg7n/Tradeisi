@@ -9,6 +9,7 @@ import time
 
 from . import olcum
 from .ayar import cikti_klasoru
+from .veri import degistir
 
 
 def _temiz(x):
@@ -33,8 +34,11 @@ def olustur(sonuc, mod: str, not_: str = "") -> dict:
                    "giris": q.giris, "stop": q.stop, "kar": q.kar, "fiyat": q.son_fiyat,
                    "pnl": q.adet * (q.son_fiyat - q.giris), "ts": q.ts_giris, "neden": q.neden}
                   for q in h.poz.values()]
+        maliyet = sum(t["maliyet"] for t in h.islemler)
+        net = sum(t["pnl"] for t in h.islemler)
         tablo.append({"ad": s.ad, "baslik": s.baslik, "kaynak": s.kaynak, "pozisyonlar": pozlar,
-                      "kilitli": k_son < h.kilit_k, "komisyon": h.komisyon, **o})
+                      "kilitli": k_son < h.kilit_k, "komisyon": h.komisyon, "maliyet": maliyet,
+                      "net_pnl": net, "brut_pnl": net + maliyet, **o})
     tablo.sort(key=lambda r: -r["ozsermaye"])
     n = len(sonuc.egri_ts)
     adim = max(1, -(-n // 300))
@@ -62,7 +66,8 @@ def olustur(sonuc, mod: str, not_: str = "") -> dict:
         "olaylar": sonuc.olaylar[-200:][::-1], "islemler": islemler[:80], "fiyatlar": fiyatlar,
         "kurul": kurul,
         "ayar": {k: a[k] for k in ("risk_yuzde", "komisyon_bps", "kayma_bps", "short_acik",
-                                   "dd_siniri", "max_pozisyon", "fuzyon_oy", "takip")},
+                                   "dd_siniri", "max_pozisyon", "max_kaldirac", "fuzyon_oy",
+                                   "takip")},
     })
 
 
@@ -71,7 +76,7 @@ def yaz(durum: dict, a: dict, ad: str) -> str:
     gecici = yol + ".tmp"
     with open(gecici, "w", encoding="utf-8") as f:
         json.dump(durum, f, ensure_ascii=False)
-    os.replace(gecici, yol)
+    degistir(gecici, yol)
     return yol
 
 
@@ -79,7 +84,7 @@ def islemleri_yaz(sonuc, a: dict, ad: str) -> str:
     """Tum kapanmis islemler: kar/zarar analizini kendiniz yapabilmeniz icin CSV."""
     yol = os.path.join(cikti_klasoru(a), f"islemler_{ad}.csv")
     alanlar = ["strateji", "sembol", "yon", "adet", "giris", "cikis", "giris_zamani", "cikis_zamani",
-               "bar", "pnl", "r", "giris_neden", "cikis_neden"]
+               "bar", "pnl", "maliyet", "r", "giris_neden", "cikis_neden"]
     with open(yol, "w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f, delimiter=";")
         w.writerow(alanlar)
@@ -87,7 +92,7 @@ def islemleri_yaz(sonuc, a: dict, ad: str) -> str:
             for t in h.islemler:
                 w.writerow([st, t["sembol"], "long" if t["yon"] > 0 else "short", f"{t['adet']:.8f}",
                             f"{t['giris']:.8f}", f"{t['cikis']:.8f}", _zaman(t["ts_giris"]),
-                            _zaman(t["ts_cikis"]), t["bar"], f"{t['pnl']:.4f}",
+                            _zaman(t["ts_cikis"]), t["bar"], f"{t['pnl']:.4f}", f"{t['maliyet']:.4f}",
                             "" if t["r"] is None else f"{t['r']:.3f}", t["giris_neden"], t["cikis_neden"]])
     return yol
 
@@ -109,11 +114,12 @@ def _zaman(ms: int) -> str:
 
 def tablo_yazdir(durum: dict) -> None:
     print(f"\n{'#':>2} {'strateji':24} {'özsermaye':>10} {'getiri':>8} {'maks düşüş':>10} "
-          f"{'sharpe':>7} {'PF':>6} {'işlem':>6} {'kazanma':>8} {'açık':>4}")
+          f"{'PF':>6} {'işlem':>6} {'kazanma':>8} {'maliyet öncesi':>14} {'maliyet':>9} {'açık':>4}")
     for i, r in enumerate(durum["tablo"], 1):
         pf = "-" if r["pf"] is None else f"{r['pf']:.2f}"
         print(f"{i:>2} {r['ad']:24} {r['ozsermaye']:>10.2f} {r['getiri'] * 100:>7.1f}% "
-              f"{r['max_dusus'] * 100:>9.1f}% {r['sharpe']:>7.2f} {pf:>6} {r['islem']:>6} "
-              f"{r['kazanma'] * 100:>7.1f}% {len(r['pozisyonlar']):>4}"
+              f"{r['max_dusus'] * 100:>9.1f}% {pf:>6} {r['islem']:>6} "
+              f"{r['kazanma'] * 100:>7.1f}% {r['brut_pnl']:>14.2f} {r['maliyet']:>9.2f} "
+              f"{len(r['pozisyonlar']):>4}"
               + ("  [KİLİTLİ]" if r["kilitli"] else ""))
     print()

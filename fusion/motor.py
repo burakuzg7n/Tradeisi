@@ -74,8 +74,11 @@ class Baglam:
     ayar: dict
     hesaplar: dict
     idx: dict
+    h: dict
+    l: dict
     c: dict
     atr: dict
+    oy_verenler: frozenset = frozenset()
     k: int = 0
 
 
@@ -115,6 +118,54 @@ class Motor:
         o.update(ek)
         self.olaylar.append(o)
 
+    # ---------------------------------------------------------------- boyut
+    def _boyut(self, h: Hesap, e: Emir, fiyat: float):
+        """(adet, risk) ya da None. Hem sinyal aninda (on kontrol) hem dolumda kullanilir.
+        Sinirlar: tek pozisyon nominali <= poz_tavan x ozsermaye; tum pozisyonlarin toplam
+        nominali <= max_kaldirac x ozsermaye (kapanmak uzere olanlar ve ayni sembol haric)."""
+        a = self.a
+        oz = h.son_oz
+        if oz <= 0 or fiyat <= 0:
+            return None
+        risk = 0.0
+        if e.stop_mesafe and e.stop_mesafe > 0:
+            risk = oz * float(a["risk_yuzde"]) / 100.0 * e.carpan
+            adet = risk / e.stop_mesafe
+        else:
+            agirlik = e.agirlik if e.agirlik is not None else 1.0 / int(a["max_pozisyon"])
+            adet = oz * agirlik * e.carpan / fiyat
+        istenen = adet
+        adet = min(adet, oz * float(a["poz_tavan"]) / fiyat)
+        brut = 0.0
+        for s, q in h.poz.items():
+            b = h.bekleyen.get(s)
+            if s == e.sembol or (b is not None and b.yon == 0):
+                continue
+            brut += abs(q.adet) * q.son_fiyat
+        kalan = (oz * float(a["max_kaldirac"]) - brut) / fiyat
+        if adet > kalan:
+            if kalan < 0.5 * adet:      # yer yok: yarim boydan kucuk pozisyon acma
+                return None
+            adet = kalan
+        if adet * fiyat < 1.0:
+            return None
+        return adet, risk * adet / istenen
+
+    def _girilebilir(self, h: Hesap, e: Emir, k: int, fiyat: float) -> bool:
+        """Sinyal aninda on kontrol: dolmayacagi belli olan giris emri SINYAL olarak yayinlanmaz
+        (bekleme/kilit/kapasite suresince her barda ayni sinyalin tekrar etmesini onler)."""
+        a = self.a
+        if k + 1 < h.kilit_k or h.bekleme.get(e.sembol, -1) > k + 1:
+            return False
+        if e.yon < 0 and not a["short_acik"]:
+            return False
+        if e.sembol not in h.poz:
+            kapanacak = sum(1 for s, b in h.bekleyen.items() if b.yon == 0 and s in h.poz)
+            acilacak = sum(1 for s, b in h.bekleyen.items() if b.yon != 0 and s not in h.poz)
+            if len(h.poz) - kapanacak + acilacak >= int(a["max_pozisyon"]):
+                return False
+        return self._boyut(h, e, fiyat) is not None
+
     # ----------------------------------------------------------------- dolum
     def _kapat(self, h: Hesap, sembol: str, ham_fiyat: float, k: int, neden: str) -> None:
         p = h.poz.pop(sembol)
@@ -125,10 +176,12 @@ class Motor:
         h.nakit += brut - kom
         h.komisyon += kom
         pnl = brut - kom - p.giris_komisyon
+        maliyet = kom + p.giris_komisyon + abs(p.adet) * (p.giris + fiyat) * self.kayma
         h.islemler.append({
             "sembol": sembol, "yon": yon, "adet": abs(p.adet), "giris": p.giris, "cikis": fiyat,
             "ts_giris": p.ts_giris, "ts_cikis": self.T[k], "bar": k - p.k_giris, "pnl": pnl,
-            "r": (pnl / p.risk) if p.risk > 0 else None, "giris_neden": p.neden, "cikis_neden": neden,
+            "maliyet": maliyet, "r": (pnl / p.risk) if p.risk > 0 else None,
+            "giris_neden": p.neden, "cikis_neden": neden,
         })
         if neden.startswith("stop"):
             h.bekleme[sembol] = k + int(self.a["bekleme_bar"])
@@ -140,24 +193,11 @@ class Motor:
             return
         if len(h.poz) >= int(a["max_pozisyon"]) or (e.yon < 0 and not a["short_acik"]):
             return
-        oz = h.son_oz
-        if oz <= 0:
-            return
         fiyat = acilis * (1.0 + e.yon * self.kayma)
-        risk = 0.0
-        if e.stop_mesafe and e.stop_mesafe > 0:
-            risk = oz * float(a["risk_yuzde"]) / 100.0 * e.carpan
-            adet = risk / e.stop_mesafe
-        else:
-            agirlik = e.agirlik if e.agirlik is not None else 1.0 / int(a["max_pozisyon"])
-            adet = oz * agirlik * e.carpan / fiyat
-        tavan = oz * float(a["poz_tavan"]) / fiyat
-        if adet > tavan:
-            if risk:
-                risk *= tavan / adet
-            adet = tavan
-        if adet * fiyat < 1.0:
+        boyut = self._boyut(h, e, fiyat)
+        if boyut is None:
             return
+        adet, risk = boyut
         kom = adet * fiyat * self.kom
         h.nakit -= kom
         h.komisyon += kom
@@ -173,7 +213,9 @@ class Motor:
             return
         kalan = {}
         # once kapanislar, sonra girisler (rotasyonda nakit/pozisyon sirasi)
-        for e in sorted(h.bekleyen.values(), key=lambda x: (x.yon != 0, x.sembol)):
+        sirali = sorted(h.bekleyen.values(), key=lambda x: (x.yon != 0, x.sembol))
+        h.bekleyen = {}
+        for e in sirali:
             i = self.idx[e.sembol][k]
             if i < 0:
                 e.yas += 1
@@ -234,7 +276,8 @@ class Motor:
         k_bas = max(0, min(k_bas, k_son))
         sermaye = float(a["baslangic_sermaye"])
         hesaplar = {s.ad: Hesap(s.ad, sermaye, son_oz=sermaye, tepe=sermaye) for s in self.stratejiler}
-        b = Baglam(p, a, hesaplar, self.idx, self.c, self.atr)
+        b = Baglam(p, a, hesaplar, self.idx, self.h, self.l, self.c, self.atr,
+                   frozenset(s.ad for s in self.stratejiler if getattr(s, "oy_verir", True)))
         for s in self.stratejiler:
             s.hazirla(p, k_bas, a)
         self.olaylar = []
@@ -246,17 +289,18 @@ class Motor:
                 self._dolum(h, k)
                 self._bar_ici(h, k)
                 self._degerle(h, k)
-                kilitli = k < h.kilit_k
-                if kilitli:
+                if k < h.kilit_k:
                     for sem in h.poz:
                         h.bekleyen[sem] = Emir(sem, 0, neden="DD kilidi")
                 for e in s.bar(k, h, b) or ():
-                    if kilitli and e.yon != 0:
+                    i = self.idx[e.sembol][k]
+                    fiyat = self.c[e.sembol][i] if i >= 0 else None
+                    if h.niyet(e.sembol) == e.yon:
+                        continue                      # zaten o yonde / zaten bos: yinelenen emir
+                    if e.yon != 0 and (fiyat is None or not self._girilebilir(h, e, k, fiyat)):
                         continue
                     h.bekleyen[e.sembol] = e
-                    i = self.idx[e.sembol][k]
-                    self._olay(self.T[k] + kapanis_farki, k, h, "SINYAL", e.sembol, e.yon,
-                               self.c[e.sembol][i] if i >= 0 else None, e.neden,
-                               stop_mesafe=e.stop_mesafe, kar_mesafe=e.kar_mesafe)
+                    self._olay(self.T[k] + kapanis_farki, k, h, "SINYAL", e.sembol, e.yon, fiyat,
+                               e.neden, stop_mesafe=e.stop_mesafe, kar_mesafe=e.kar_mesafe)
         return Sonuc(p, a, self.stratejiler, hesaplar, self.olaylar, k_bas, k_son,
                      self.T[k_bas:k_son + 1])

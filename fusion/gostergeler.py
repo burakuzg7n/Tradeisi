@@ -9,12 +9,18 @@ def _bos(n: int) -> np.ndarray:
     return np.full(n, np.nan)
 
 
+BLOK_ELEMAN = 4_000_000   # gecici dizi ust siniri (~32 MB); uzun pencerelerde bellek patlamasin
+
+
 def _pencere(x, n: int, fn) -> np.ndarray:
     x = np.asarray(x, dtype=float)
     out = _bos(len(x))
     n = int(n)
     if n >= 1 and len(x) >= n:
-        out[n - 1:] = fn(sliding_window_view(x, n), axis=1)
+        gorunum = sliding_window_view(x, n)
+        blok = max(1, BLOK_ELEMAN // n)
+        for bas in range(0, len(gorunum), blok):
+            out[n - 1 + bas: n - 1 + bas + blok] = fn(gorunum[bas: bas + blok], axis=1)
     return out
 
 

@@ -1,8 +1,8 @@
 """Canli kagit islem dongusu.
 
 Her yeni kapanan mumda: veriyi tamamla -> baslangic anindan bugune TUM barlari ayni motorla
-yeniden oynat -> yeni sinyalleri ilet -> panel dosyasini yaz. Durum yalniz iki sayidir
-(baslangic zamani, son iletilen sinyal zamani); program kapanip acilsa da ayni sonucu uretir.
+yeniden oynat -> yeni sinyalleri ilet -> panel dosyasini yaz. Kalici durum yalniz baslangic
+zamani ve son iletilen sinyal zamanidir; program kapanip acilsa da ayni sonucu uretir.
 """
 from __future__ import annotations
 
@@ -31,29 +31,31 @@ def kayit_yaz(a: dict, k: dict) -> None:
     gecici = _kayit_yolu(a) + ".tmp"
     with open(gecici, "w", encoding="utf-8") as f:
         json.dump(k, f)
-    os.replace(gecici, _kayit_yolu(a))
+    veri.degistir(gecici, _kayit_yolu(a))
 
 
 def tur(a: dict, simdi_ms: int | None = None, indir: bool = True, piyasa=None, sessiz: bool = False):
     """Tek dongu adimi. (durum_sozlugu, iletilen_sinyal_sayisi) dondurur."""
-    simdi_ms = simdi_ms or int(time.time() * 1000)
     uyari = ""
     if piyasa is None:
         if indir:
-            for s in a["semboller"]:
-                try:
-                    veri.guncelle(s, a["aralik"], a["gecmis_gun"])
-                except ConnectionError as e:
-                    uyari = f"Veri güncellenemedi, eldeki veriyle devam: {e}"
-                    if not sessiz:
-                        print("  UYARI: " + uyari)
-                    break
+            uyari = veri.hepsini_guncelle(a["semboller"], a["aralik"], a["gecmis_gun"])
+            if uyari and not sessiz:
+                print("  UYARI: " + uyari)
         piyasa = veri.piyasa_yukle(a["semboller"], a["aralik"])
+    simdi_ms = simdi_ms or veri.simdi_ms()
     k = kayit_oku(a)
+    if k and (k.get("aralik") != a["aralik"] or k.get("semboller") != list(a["semboller"])):
+        if not sessiz:
+            print("  Aralık ya da sembol listesi değişmiş: canlı kâğıt hesaplar baştan başlatılıyor.")
+        sifirla(a)
+        k = {}
     if "baslangic_ts" not in k:
         k = {"baslangic_ts": int(piyasa.T[-1]) - int(a["canli_geri_gun"]) * 86_400_000,
-             "son_iletilen_ts": int(piyasa.T[-1]) + piyasa.adim_ms, "ilk_acilis": simdi_ms}
+             "son_iletilen_ts": int(piyasa.T[-1]) + piyasa.adim_ms, "ilk_acilis": simdi_ms,
+             "aralik": a["aralik"], "semboller": list(a["semboller"])}
         kayit_yaz(a, k)
+    piyasa = veri.kirp(piyasa, k["baslangic_ts"])
     sonuc = Motor(piyasa, stratejiler.hepsi(a), a).kos(piyasa.k_bul(k["baslangic_ts"]))
     d = durum.olustur(sonuc, "canli", uyari)
     lider = d["tablo"][0]["ad"] if d["tablo"] else None
@@ -72,7 +74,7 @@ def sifirla(a: dict) -> None:
     for ad in ("canli.json", "durum_canli.json"):
         yol = os.path.join(cikti_klasoru(a), ad)
         if os.path.exists(yol):
-            os.replace(yol, yol + ".eski")
+            veri.degistir(yol, yol + ".eski")
 
 
 def dongu(a: dict, bir_kez: bool = False) -> None:
@@ -95,6 +97,6 @@ def dongu(a: dict, bir_kez: bool = False) -> None:
             continue
         if bir_kez:
             return
-        simdi = time.time() * 1000
-        sonraki = (int(simdi) // adim + 1) * adim + 8000
+        simdi = veri.simdi_ms()                       # Binance saatine gore
+        sonraki = (simdi // adim + 1) * adim + 5000   # mum kapanisindan 5 sn sonra
         time.sleep(max(5.0, (sonraki - simdi) / 1000.0))

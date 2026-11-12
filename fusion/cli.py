@@ -1,8 +1,8 @@
 """Komut satiri:  python -m fusion <komut>
 
   kontrol    Kurulum ve veri durumu
-  veri       Binance'ten mum verisini indir / tamamla (anahtar gerekmez)
-  backtest   Son N gunu tum stratejilerle oynat, tabloyu yaz   [--gun N] [--panel]
+  veri       Binance'ten mum verisini indir / tamamla (anahtar gerekmez)   [--aralik 1h]
+  backtest   Son N gunu tum stratejilerle oynat, tabloyu yaz   [--gun N] [--aralik 1h] [--panel]
   canli      Canli KAGIT islem + panel (gercek emir yok)        [--bir-kez] [--sifirla] [--panelsiz]
   panel      Yalniz web panelini ac
   durum      Son canli/backtest tablosunu yazdir
@@ -31,6 +31,9 @@ def _ilerleme(sembol, imlec, son):
 
 def k_veri(a, args) -> int:
     print(f"Veri indiriliyor: {', '.join(a['semboller'])} · {a['aralik']} · {a['gecmis_gun']} gün")
+    fark = veri.sunucu_farki(yenile=True)
+    if abs(fark) > 2000:
+        print(f"  Not: bilgisayar saati Binance'e göre {fark / 1000:+.1f} sn kayık; hesaplar Binance saatiyle yapılır.")
     hata = 0
     for s in a["semboller"]:
         try:
@@ -47,7 +50,9 @@ def k_veri(a, args) -> int:
 
 def _backtest(a, piyasa, mod: str, not_: str = ""):
     gun = int(a["backtest_gun"])
-    k_bas = piyasa.k_bul(int(piyasa.T[-1]) - gun * 86_400_000)
+    bas_ts = int(piyasa.T[-1]) - gun * 86_400_000
+    piyasa = veri.kirp(piyasa, bas_ts)
+    k_bas = piyasa.k_bul(bas_ts)
     t0 = time.time()
     sonuc = Motor(piyasa, stratejiler.hepsi(a), a).kos(k_bas)
     d = durum.olustur(sonuc, mod, not_)
@@ -156,11 +161,14 @@ def main(argv=None) -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     alt = p.add_subparsers(dest="komut")
     alt.add_parser("kontrol")
-    alt.add_parser("veri")
+    v = alt.add_parser("veri")
+    v.add_argument("--aralik", choices=sorted(veri.ARALIK_MS), default=None)
     b = alt.add_parser("backtest")
+    b.add_argument("--aralik", choices=sorted(veri.ARALIK_MS), default=None)
     b.add_argument("--gun", type=int, default=0)
     b.add_argument("--panel", action="store_true")
     c = alt.add_parser("canli")
+    c.add_argument("--aralik", choices=sorted(veri.ARALIK_MS), default=None)
     c.add_argument("--bir-kez", action="store_true")
     c.add_argument("--sifirla", action="store_true")
     c.add_argument("--panelsiz", action="store_true")
@@ -182,6 +190,8 @@ def main(argv=None) -> int:
         p.print_help()
         return 0
     a = ayar_m.yukle()
+    if getattr(args, "aralik", None):
+        a["aralik"] = args.aralik
     try:
         return globals()["k_" + args.komut](a, args)
     except ValueError as e:

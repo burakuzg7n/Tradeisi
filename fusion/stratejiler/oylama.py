@@ -13,7 +13,7 @@ class FuzyonOylama(Strateji):
     def oylar(self, sembol, b):
         arti, eksi = [], []
         for ad, h in b.hesaplar.items():
-            if ad == self.ad:
+            if ad == self.ad or ad not in b.oy_verenler:
                 continue
             n = h.niyet(sembol)
             if n > 0:

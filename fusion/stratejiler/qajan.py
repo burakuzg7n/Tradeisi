@@ -26,18 +26,16 @@ class QAjan(Strateji):
     egitim_bar, tur, alfa, gama, kesif = 20_000, 4, 0.05, 0.98, 0.15
     min_egitim = 500
 
-    def _durumlar(self, bars, atr):
+    def _durumlar(self, bars, atr, oyn_oran):
         c = bars.c
         with np.errstate(divide="ignore", invalid="ignore"):
             t = (g.ema(c, 20) - g.ema(c, 50)) / atr
             rsi = g.rsi(c, 14)
             yon = g.roc(c, 96)
-            oyn = atr / c
-            oyn_y = oyn > g.median(oyn, 672)
             d = (np.where(t > 0.5, 2, np.where(t < -0.5, 0, 1)) * 12
                  + np.where(rsi > 60, 2, np.where(rsi < 40, 0, 1)) * 4
-                 + np.where(yon > 0, 1, 0) * 2 + np.where(oyn_y, 1, 0))
-        gecersiz = np.isnan(t) | np.isnan(rsi) | np.isnan(yon) | np.isnan(g.median(oyn, 672))
+                 + np.where(yon > 0, 1, 0) * 2 + np.where(oyn_oran > 1.0, 1, 0))
+        gecersiz = np.isnan(t) | np.isnan(rsi) | np.isnan(yon) | np.isnan(oyn_oran)
         d = d.astype(int)
         d[gecersiz] = -1
         return d
@@ -53,7 +51,7 @@ class QAjan(Strateji):
         q, alfa, gama = self.q, self.alfa, self.gama
         for s in piyasa.semboller:
             bars = piyasa.barlar[s]
-            d = self._durumlar(bars, piyasa.atr[s])
+            d = self._durumlar(bars, piyasa.atr[s], piyasa.oyn_orani(s))
             self._durum[s] = d.tolist()
             son = int(np.searchsorted(bars.ts, t_bas))      # egitim: yalniz t_bas oncesi
             bas = max(0, son - self.egitim_bar)

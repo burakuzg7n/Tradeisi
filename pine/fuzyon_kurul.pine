@@ -1,6 +1,7 @@
 //@version=5
 // Füzyon — Ajan Kurulu + Kanal Kırılımı göstergesi
-// fusion/stratejiler/kurul.py ve kirilim.py ile aynı kurallar. Emir GÖNDERMEZ; yalnız işaret ve alarm üretir.
+// fusion/stratejiler/kurul.py ile aynı kurul kuralları; kırılım okları kirilim.py'nin GİRİŞ koşulunu gösterir
+// (izleyen stop çıkışı gösterilmez). Emir GÖNDERMEZ; yalnız işaret ve alarm üretir.
 // Not: ilk barlardaki EMA/ATR başlangıç farkı yüzünden Python ile küçük sapmalar olabilir.
 indicator("Füzyon — Kurul + Kırılım", shorttitle="Füzyon", overlay=true, max_labels_count=500)
 
@@ -8,12 +9,15 @@ girisEsik = input.float(0.40, "Kurul giriş eşiği", step=0.05, minval=0.05, ma
 cikisEsik = input.float(0.05, "Kurul çıkış eşiği", step=0.05, minval=0.0, maxval=1.0)
 stopAtr   = input.float(2.0, "Stop (ATR katı)", step=0.5, minval=0.5)
 karAtr    = input.float(3.0, "Hedef (ATR katı)", step=0.5, minval=0.5)
-donN      = input.int(20, "Kırılım kanalı (bar)", minval=5)
+donN      = input.int(20, "Kırılım kanalı (bar, kapanışlara göre)", minval=5)
+kisaN     = input.int(20, "Kırılım trend filtresi: kısa ortalama", minval=2)
+uzunN     = input.int(60, "Kırılım trend filtresi: uzun ortalama", minval=3)
 btcSym    = input.symbol("BINANCE:BTCUSDT", "Piyasa rejimi sembolü")
 kanalGoster = input.bool(true, "Kırılım kanalını çiz")
 tabloGoster = input.bool(true, "Kurul puan tablosunu göster")
 
 sinirla(x, lo, hi) => math.max(lo, math.min(hi, x))
+puanRengi(v) => v > 0.05 ? color.teal : v < -0.05 ? color.red : color.gray
 
 atr  = ta.atr(14)
 e20  = ta.ema(close, 20)
@@ -52,10 +56,14 @@ kurulShort = poz == -1 and onceki != -1
 kurulCikis = poz == 0 and onceki != 0
 
 // --- Kanal kırılımı ---
-ust = ta.highest(high, donN)[1]
-alt = ta.lowest(low, donN)[1]
-kirilimLong  = barstate.isconfirmed and close > ust and close[1] <= ust[1]
-kirilimShort = barstate.isconfirmed and close < alt and close[1] >= alt[1]
+ust = ta.highest(close, donN)[1]
+alt = ta.lowest(close, donN)[1]
+kisaOrt = ta.rma(close, kisaN)
+uzunOrt = ta.rma(close, uzunN)
+kirilimLongSart  = kisaOrt > uzunOrt and close >= ust
+kirilimShortSart = kisaOrt < uzunOrt and close <= alt
+kirilimLong  = barstate.isconfirmed and kirilimLongSart and not kirilimLongSart[1]
+kirilimShort = barstate.isconfirmed and kirilimShortSart and not kirilimShortSart[1]
 
 plot(kanalGoster ? ust : na, "Kanal üst", color=color.new(color.teal, 55))
 plot(kanalGoster ? alt : na, "Kanal alt", color=color.new(color.red, 55))
@@ -82,21 +90,20 @@ if poz == 0
 plot(stopSeviye, "Stop",  color=color.new(color.red, 20),  style=plot.style_linebr)
 plot(karSeviye,  "Hedef", color=color.new(color.teal, 20), style=plot.style_linebr)
 
+var table t = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 70), border_width=1)
 if tabloGoster and barstate.islast
-    var table t = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 70), border_width=1)
-    renk(v) => v > 0.05 ? color.teal : v < -0.05 ? color.red : color.gray
     table.cell(t, 0, 0, "Füzyon kurulu", text_color=color.white, text_size=size.small)
     table.cell(t, 1, 0, poz == 1 ? "LONG" : poz == -1 ? "SHORT" : "BEKLE", text_color=color.white, text_size=size.small)
     table.cell(t, 0, 1, "Trend", text_color=color.white, text_size=size.small)
-    table.cell(t, 1, 1, str.tostring(trend, "#.##"), text_color=renk(trend), text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(trend, "#.##"), text_color=puanRengi(trend), text_size=size.small)
     table.cell(t, 0, 2, "Momentum", text_color=color.white, text_size=size.small)
-    table.cell(t, 1, 2, str.tostring(momentum, "#.##"), text_color=renk(momentum), text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(momentum, "#.##"), text_color=puanRengi(momentum), text_size=size.small)
     table.cell(t, 0, 3, "Hacim", text_color=color.white, text_size=size.small)
-    table.cell(t, 1, 3, str.tostring(hacim, "#.##"), text_color=renk(hacim), text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(hacim, "#.##"), text_color=puanRengi(hacim), text_size=size.small)
     table.cell(t, 0, 4, "BTC rejimi", text_color=color.white, text_size=size.small)
-    table.cell(t, 1, 4, str.tostring(piyasa, "#.##"), text_color=renk(piyasa), text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(piyasa, "#.##"), text_color=puanRengi(piyasa), text_size=size.small)
     table.cell(t, 0, 5, "Net", text_color=color.white, text_size=size.small)
-    table.cell(t, 1, 5, str.tostring(net, "#.##"), text_color=renk(net), text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(net, "#.##"), text_color=puanRengi(net), text_size=size.small)
     table.cell(t, 0, 6, "Oynaklık", text_color=color.white, text_size=size.small)
     table.cell(t, 1, 6, "×" + str.tostring(oynOran, "#.#"), text_color=riskOk ? color.white : color.red, text_size=size.small)
 
