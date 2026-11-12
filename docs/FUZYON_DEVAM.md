@@ -112,7 +112,7 @@ Burak'ın isteği: aralığı tek tek ayarlamak ve cmd penceresi olmasın; her �
 - [x] 21. Telegram: panelden bağlama, test mesajı, aralık başına bildirim, `/durum` komutu
 - [x] 22. Penceresiz başlatma (`Fuzyon.vbs`), isteğe bağlı Windows açılışında başlatma
 - [x] 23. Bulut: `python -m fusion bulut` + GitHub Actions zamanlanmış iş (PC kapalıyken 4h/1h sinyali)
-- [ ] 24. Testler, kılavuz, Burak'ın klasörüne eşitleme + sha256 doğrulama
+- [x] 24. Testler, kılavuz, Burak'ın klasörüne eşitleme + sha256 doğrulama
 
 - 4. tur notları:
   - Bulut işi GitHub'da gerçekten denendi (12 Kas 17:34 UTC, dal üzerinde): GitHub sunucusu Binance'ten
