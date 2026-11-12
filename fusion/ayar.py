@@ -42,7 +42,7 @@ VARSAYILAN = {
 ON_AYAR = {
     "1m":  {"gecmis_gun": 30,   "backtest_gun": 10,   "canli_geri_gun": 1,   "dd_kilit_gun": 1},
     "3m":  {"gecmis_gun": 75,   "backtest_gun": 25,   "canli_geri_gun": 2,   "dd_kilit_gun": 1},
-    "5m":  {"gecmis_gun": 150,  "backtest_gun": 60,   "canli_geri_gun": 3,   "dd_kilit_gun": 1},
+    "5m":  {"gecmis_gun": 300,  "backtest_gun": 60,   "canli_geri_gun": 3,   "dd_kilit_gun": 1},   # 10m ile ayni dosya
     "10m": {"gecmis_gun": 300,  "backtest_gun": 120,  "canli_geri_gun": 5,   "dd_kilit_gun": 2},
     "15m": {"gecmis_gun": 500,  "backtest_gun": 240,  "canli_geri_gun": 7,   "dd_kilit_gun": 2},
     "30m": {"gecmis_gun": 800,  "backtest_gun": 365,  "canli_geri_gun": 14,  "dd_kilit_gun": 3},

@@ -8,21 +8,63 @@ TradingView'da gösteren bir gösterge vardır.
 **Ne değil:** Gerçek emir göndermez. Kâr garantisi vermez. Buradaki stratejiler projenin tek atış
 protokolünden (AGENTS.md) geçmemiştir; sonuçların değerlendirmesi Burak'a aittir.
 
-## Başlangıç (Windows)
-1. `Fuzyon.bat` dosyasına çift tıkla.
-2. **1** → kurulum (yalnız `numpy`).
-3. **2** → veri indir (Binance, anahtar gerekmez; ilk seferde birkaç dakika).
-4. **3** → backtest + panel (tarayıcıda `http://127.0.0.1:8777` açılır).
-5. **4** → canlı kâğıt işlem + panel. Pencere açık kaldıkça her yeni mumu (varsayılan: 4 saatte bir)
-   işler. Kapatıp açarsan kaldığı yerden devam eder (aynı sonucu yeniden üretir); bilgisayar
-   kapalıyken kaçan mumlar açılışta oynatılır, yalnız son 2 mumun sinyalleri iletilir.
+## Başlangıç (Windows) — penceresiz, her şey panelden
+1. İlk kez: `Fuzyon.bat` → **1** (kurulum, yalnız `numpy`). Bir kere yeter.
+2. **`Fuzyon.vbs`** dosyasına çift tıkla. Pencere açılmaz; tarayıcıda `http://127.0.0.1:8777` açılır.
+3. Panelde üstteki düğmelerden zaman dilimini seç: `1m 3m 5m 10m 15m 30m 1h 2h 4h 1d`.
+   Hepsi arka planda **aynı anda** çalışır; ilk açılışta veriler sırayla indirilir
+   (düğmedeki nokta sarı = hazırlanıyor, yeşil = çalışıyor, gri = kapalı).
+4. **Ayarlar** düğmesi: aralıkları aç/kapat, Telegram bildirimini aralık bazında aç/kapat, backtest
+   çalıştır, Telegram'ı bağla, "Windows açılınca kendiliğinden başlasın", servisi durdur.
 
-İnternetsiz denemek için **7** (demo, uydurma veri).
+- Servis çalışırken `Fuzyon.vbs`'e yeniden tıklamak yalnız paneli açar (ikinci kopya başlamaz).
+- Durdurmak: panel → Ayarlar → **Servisi durdur**. Günlük: `out/fusion/servis.log`.
+- Eski menü (`Fuzyon.bat`) duruyor; **S** seçeneği aynı servisi başlatır. Servis çalışırken menüdeki
+  **4**'ü (tek aralıklı canlı mod) ayrıca çalıştırma: aynı dosyalara iki süreç yazar.
+- Bilgisayar uyursa servis de durur; uyanınca kaçan mumları işler (8 saatten/2 mumdan eski
+  sinyalleri iletmez).
+
+## Telegram
+Panel → Ayarlar → Telegram:
+1. Telegram'da **@BotFather**'a yaz → `/newbot` → bir ad ver → sana bir **token** verir.
+2. Token'ı panele yapıştır → **Kaydet**.
+3. Kendi botuna herhangi bir mesaj yaz → panelde adın görünür → **Evet, bağla**.
+
+Sonrası: sinyaller telefonuna gelir (varsayılan yalnız 4h; diğer aralıkları Ayarlar'dan açarsın).
+Bota `/durum`, `/durum 15m`, `/araliklar` yazarak tabloyu telefondan isteyebilirsin; yalnız bağladığın
+sohbet yanıt alır. Token bu bilgisayardaki `.env` dosyasında durur (GitHub'a gitmez).
+
+## Bulutta çalıştırma (bilgisayar kapalıyken)
+Bot bir yerde sürekli çalışmak zorunda; telefon bunu yapamaz. Ücretsiz seçenek: GitHub'ın kendi
+sunucuları (`.github/workflows/fuzyon-bulut.yml`). Saatte iki kez uyanır, **4h ve 1h** için tek tur
+atar, yeni sinyali Telegram'a yollar, `/durum` komutlarını yanıtlar. Gerçek emir göndermez.
+
+Kurulum (bir kerelik):
+1. PR #24'ü `main`'e birleştir (zamanlanmış işler yalnız ana dalda çalışır).
+2. GitHub'da repo → **Settings → Secrets and variables → Actions → New repository secret**:
+   `TELEGRAM_BOT_TOKEN` (BotFather'ın verdiği) ve `TELEGRAM_CHAT_ID` (panelde Ayarlar → Telegram'da
+   "sohbet kimliği" olarak görünür).
+3. **Actions** sekmesi → `fuzyon-bulut` → **Run workflow** ile ilk turu elle başlat.
+
+Sınırlar:
+- Panel bulutta yoktur; telefondan izleme Telegram üzerindendir.
+- GitHub'ın zamanlaması birkaç dakika (yoğun saatlerde daha fazla) gecikebilir; bu yüzden yalnız
+  1h ve 4h. Kısa aralıklar için bilgisayar ya da kiralık bir sunucu gerekir.
+- `/durum` yanıtı bir sonraki uyanışta gelir (en çok ~30 dk).
+- Bulut ile bilgisayardaki servis **ayrı** kâğıt hesaplar tutar. İkisinde de 4h bildirimi açıksa aynı
+  sinyal iki kez gelebilir: birinde kapat.
+- Repo 60 gün hiç güncellenmezse GitHub zamanlanmış işi durdurur; Actions sekmesinden yeniden açılır.
+- Her şeyi (panel dahil) 7/24 çalıştırmak istersen aynı komut Linux sunucuda da çalışır:
+  `python -m fusion servis --sessiz`. Sunucu kiralama ve kurulum ayrı bir iştir.
+
+## Komut satırı (isteğe bağlı)
+`Fuzyon.bat` menüsü ve `python -m fusion --help` eski tek aralıklı kullanım içindir:
+**2** veri indir, **3** backtest + panel, **4** tek aralıkta canlı mod, **7** demo (uydurma veri),
+**9** menü komutlarının kullandığı aralığı seç.
 
 ## Mum aralığı seçimi (scalp dahil)
-Menüde **9** → aralığı yaz: `1m 3m 5m 10m 15m 30m 1h 2h 4h 1d`. Seçim `fuzyon_ayar.json` dosyasına
-kaydedilir; menünün üstünde geçerli aralık görünür. Aralık değişince önce **2** (veri indir), sonra
-**3** ya da **4**. Canlı kâğıt hesaplar yeni aralıkta baştan başlar.
+Serviste (önerilen) seçim panelin üstündeki düğmelerdedir; her aralığın kâğıt hesapları ayrıdır ve
+birbirini etkilemez. Eski menüde **9** aynı işi tek aralık için yapar.
 
 | Aralık | İndirilen geçmiş | Backtest dönemi | Canlı mod başlangıcı |
 |---|---|---|---|
@@ -124,9 +166,11 @@ aralık değişince süre karşılıkları da değişir.
 short, DD sınırı, `takip`, `webhook_url`, port). Telegram için kökteki `.env` dosyasına
 `TELEGRAM_BOT_TOKEN` ve `TELEGRAM_CHAT_ID` yaz. `takip`: `"hepsi"`, `"lider"` ya da bir strateji adı.
 
-## Çıktılar (`out/fusion/`)
-`durum_canli.json`, `durum_backtest.json` (panel bunları okur) · `islemler_backtest.csv`,
-`ozsermaye_backtest.csv` (Excel'de açılır; kendi kâr/zarar analizin için) · `sinyaller.jsonl`.
+## Çıktılar (`out/fusion/<aralık>/`)
+Her aralığın kendi klasörü vardır: `durum_canli.json`, `durum_backtest.json` (panel bunları okur) ·
+`islemler_backtest.csv`, `ozsermaye_backtest.csv` (Excel'de açılır; kendi kâr/zarar analizin için) ·
+`sinyaller.jsonl` · `canli.json` (canlı oturumun başlangıcı). Ortak: `out/fusion/servis.json`
+(hangi aralık açık), `servis.log`.
 Tabloda **Maliyet** = kapanan işlemlerin komisyon + kayması; **Maliyet öncesi K/Z** = sinyallerin
 maliyetsiz sonucu. İkisinin farkı net sonuçtur.
 

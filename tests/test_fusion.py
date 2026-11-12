@@ -289,7 +289,12 @@ def test_guncelle_dosyanin_sonuna_ekler(tmp_path, monkeypatch):
     boyut = len(open(yol, "rb").read())
     b = veri.guncelle("X", "15m", 10, str(tmp_path))
     okunan = veri.csv_oku(yol)
-    assert len(b) == len(okunan) == 30 and len(open(yol, "rb").read()) > boyut
+    assert len(b) == len(okunan) == 30                         # bellekten: yeni mumlar gorunur
+    assert len(open(yol, "rb").read()) == boyut                # kisa aralik: dosya hemen yazilmaz
+    assert veri.bekleyenleri_yaz() == 10 and veri.bekleyenleri_yaz() == 0
+    veri._ONBELLEK.clear()
+    okunan = veri.csv_oku(yol)                                 # diskten yeniden
+    assert len(okunan) == 30 and len(open(yol, "rb").read()) > boyut
     np.testing.assert_array_equal(okunan.ts, tam.ts)
     np.testing.assert_array_equal(okunan.c, tam.c)
     assert open(yol, encoding="utf-8").read().count("timestamp") == 1
@@ -505,13 +510,13 @@ def test_araliga_gore_on_ayarlar(tmp_path, monkeypatch):
     ayar_m.aralik_uygula(a, "1m")
     assert (a["gecmis_gun"], a["backtest_gun"], a["canli_geri_gun"], a["dd_kilit_gun"]) == (30, 10, 1, 1)
     for ar, o in ayar_m.ON_AYAR.items():                       # indirme boyutu makul kalsin
-        assert ar in veri.ARALIK_MS and o["gecmis_gun"] * 86_400_000 // veri.ARALIK_MS[ar] <= 50_000
+        assert ar in veri.ARALIK_MS and o["gecmis_gun"] * 86_400_000 // veri.ARALIK_MS[ar] <= 90_000
         assert o["backtest_gun"] < o["gecmis_gun"]
     ayar_m.aralik_kaydet("5m")
     json.dump({"aralik": "5m", "backtest_gun": 7, "risk_yuzde": 0.5},
               open(tmp_path / "fuzyon_ayar.json", "w"))
     b = ayar_m.yukle()
-    assert b["aralik"] == "5m" and b["gecmis_gun"] == 150 and b["backtest_gun"] == 7 and b["risk_yuzde"] == 0.5
+    assert b["aralik"] == "5m" and b["gecmis_gun"] == 300 and b["backtest_gun"] == 7 and b["risk_yuzde"] == 0.5
     ayar_m.aralik_kaydet("15m")                                 # diger ayarlara dokunmaz
     c = ayar_m.yukle()
     assert c["aralik"] == "15m" and c["backtest_gun"] == 7 and c["risk_yuzde"] == 0.5 and c["gecmis_gun"] == 500
@@ -822,3 +827,30 @@ def test_bulut_komutu_tek_tur_atar(tmp_path, monkeypatch, capsys):
     cikti = capsys.readouterr().out
     assert "1m: 1441 mum" in cikti and "5m: 289 mum" in cikti
     assert cli.k_bulut(a, SimpleNamespace(araliklar="7m")) == 1
+
+
+def test_kisa_aralikta_dosya_her_mumda_yazilmaz(tmp_path, monkeypatch):
+    """1m canli dongude CSV her dakika degil, 60 mumda bir (ya da 30 dakikada bir) yazilir;
+    bellekteki veri eksiksizdir ve surec kapanirken kalan mumlar yazilir."""
+    semboller = ["BTCUSDT"]
+    a = _ayar(tmp_path, semboller=semboller, veri=str(tmp_path / "data"))
+    ayar_m.aralik_uygula(a, "1m")
+    a.update(gecmis_gun=2, canli_geri_gun=1)
+    kaynak, saat, adim = _sahte_borsa(monkeypatch, semboller, "1m", 6000, 4000)
+    saat["ms"] += 1000
+    veri._ONBELLEK.clear()
+    canli.tur(a, sessiz=True)
+    yol = veri.csv_yolu("BTCUSDT", "1m", a["veri"])
+    yazim = []
+    asil = veri.csv_ekle
+    monkeypatch.setattr(veri, "csv_ekle", lambda y, b: (yazim.append(len(b)), asil(y, b))[1])
+    for _ in range(100):
+        saat["ms"] += 60_000
+        d, _n = canli.tur(a, sessiz=True)
+    assert len(veri.csv_oku(yol)) == 2880 + 100                # bellekte hepsi var
+    yazilan = sum(yazim)
+    assert 2 <= len(yazim) <= 5 and yazilan < 100              # 100 mumda birkac yazim; sonuncular bekliyor
+    assert veri.bekleyenleri_yaz() == 100 - yazilan
+    veri._ONBELLEK.clear()
+    b = veri.csv_oku(yol)
+    assert len(b) == 2980 and np.all(np.diff(b.ts) == 60_000)

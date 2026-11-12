@@ -216,8 +216,19 @@ class Servis:
         h["hazir"] = True
         self._tur_sonucu(ar, d, n, simdi, t0)
         self.log(f"{ar}: hazır ({d['bar_sayisi']} mum oynatıldı, {time.time() - t0:.1f} sn)")
-        if not os.path.exists(os.path.join(ayar_m.cikti_klasoru(a), "durum_backtest.json")):
+        if self._backtest_eski_mi(a):
             self.backtest_iste(ar)
+
+    @staticmethod
+    def _backtest_eski_mi(a: dict) -> bool:
+        """Backtest sonucu yoksa, baska coin listesiyle yapilmissa ya da 24 saatten eskiyse."""
+        try:
+            with open(os.path.join(ayar_m.cikti_klasoru(a), "durum_backtest.json"), encoding="utf-8") as f:
+                d = json.load(f)
+            return (d.get("mod") != "backtest" or d.get("semboller") != list(a["semboller"])
+                    or time.time() * 1000 - d.get("guncelleme", 0) > 86_400_000)
+        except (OSError, ValueError):
+            return True
 
     def _is_yap(self, is_: tuple) -> None:
         tur, ar = is_
@@ -424,4 +435,6 @@ def baslat(taban: dict, tarayici: bool = True) -> int:
     finally:
         servis.dur.set()
         sunucu.server_close()
+        time.sleep(0.3)                     # calisan is parcacigi turunu bitirsin
+        veri.bekleyenleri_yaz()
     return 0

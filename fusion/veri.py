@@ -4,6 +4,7 @@ CSV bicimi projedeki mevcut dosyalarla aynidir: timestamp(ms, bar ACILISI),open,
 """
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import time
@@ -91,15 +92,40 @@ def csv_yolu(sembol: str, aralik: str, klasor: str | None = None) -> str:
     return os.path.join(veri_klasoru(klasor), f"{sembol}_{aralik}.csv")
 
 
-_ONBELLEK: dict = {}     # yol -> ((mtime_ns, boyut), Bars); kisa araliklarda her turda yeniden okumamak icin
+# yol -> {"imza": (mtime_ns, boyut), "bars": Bars, "bekleyen": diske henuz yazilmamis mum sayisi,
+#         "son_yazim": zaman}. Kisa araliklarda dosyayi her mumda yeniden okumamak VE yazmamak icin.
+_ONBELLEK: dict = {}
+YAZ_BEKLET_SN = 1800      # kisa aralikta yeni mumlar en gec bu kadar sonra diske yazilir
+YAZ_BEKLET_MUM = 60       # ya da bu kadar mum birikince (hangisi once olursa)
 
 
 def _onbellege_koy(yol: str, bars: Bars) -> None:
     try:
         st = os.stat(yol)
-        _ONBELLEK[yol] = ((st.st_mtime_ns, st.st_size), bars)
+        _ONBELLEK[yol] = {"imza": (st.st_mtime_ns, st.st_size), "bars": bars, "bekleyen": 0,
+                          "son_yazim": time.time()}
     except OSError:
         _ONBELLEK.pop(yol, None)
+
+
+def bekleyenleri_yaz() -> int:
+    """Bellekte bekleyen mumlari diske yazar (servis dururken ve surec kapanirken cagrilir).
+    Yazilamazsa veri kaybolmaz: bir sonraki acilista eksik mumlar yeniden indirilir."""
+    n = 0
+    for yol, k in list(_ONBELLEK.items()):
+        if k["bekleyen"] > 0:
+            try:
+                bars = k["bars"]
+                i = len(bars) - k["bekleyen"]
+                csv_ekle(yol, Bars(bars.ts[i:], bars.o[i:], bars.h[i:], bars.l[i:], bars.c[i:], bars.v[i:]))
+                n += k["bekleyen"]
+                _onbellege_koy(yol, bars)
+            except OSError:
+                pass
+    return n
+
+
+atexit.register(bekleyenleri_yaz)
 
 
 def csv_oku(yol: str) -> Bars:
@@ -109,14 +135,15 @@ def csv_oku(yol: str) -> Bars:
     except OSError:
         return Bars.bos()
     kayit = _ONBELLEK.get(yol)
-    if kayit is not None and kayit[0] == (st.st_mtime_ns, st.st_size):
-        return kayit[1]
+    if kayit is not None and kayit["imza"] == (st.st_mtime_ns, st.st_size):
+        return kayit["bars"]                    # diske henuz yazilmamis mumlar dahil
     try:
         a = np.loadtxt(yol, delimiter=",", skiprows=1, ndmin=2)
     except ValueError:
         return Bars.bos()
     bars = Bars.satirlardan(a[:, :6]) if a.size else Bars.bos()
-    _ONBELLEK[yol] = ((st.st_mtime_ns, st.st_size), bars)
+    _ONBELLEK[yol] = {"imza": (st.st_mtime_ns, st.st_size), "bars": bars, "bekleyen": 0,
+                      "son_yazim": time.time()}
     return bars
 
 
@@ -180,6 +207,7 @@ def _http_json(url: str, zaman_asimi: float = 20.0):
 
 
 _SAAT = {"fark": 0, "okundu": 0.0}
+_IYI_SUNUCU = {"i": 0}
 
 
 def sunucu_farki(yenile: bool = False) -> int:
@@ -213,7 +241,7 @@ def binance_mumlar(sembol: str, aralik: str, bas_ms: int, son_ms: int | None = N
     son_ms = min(son_ms or simdi, simdi)
     satirlar: list[list[float]] = []
     imlec = int(bas_ms)
-    sunucu_i = 0
+    sunucu_i = _IYI_SUNUCU["i"]          # son calisan sunucudan basla (bazi bolgelerde ilki kapali)
     hata_sayisi = 0
     while imlec < son_ms:
         q = urllib.parse.urlencode({"symbol": sembol, "interval": aralik, "startTime": imlec,
@@ -231,6 +259,7 @@ def binance_mumlar(sembol: str, aralik: str, bas_ms: int, son_ms: int | None = N
             time.sleep(1.0)
             continue
         hata_sayisi = 0
+        _IYI_SUNUCU["i"] = sunucu_i
         if not parca:
             break
         for k in parca:
@@ -277,9 +306,16 @@ def guncelle(sembol: str, aralik: str, gecmis_gun: int, klasor: str | None = Non
     yeni = yeni.kes(bas_ts=int(eski.ts[-1]) + 1)
     if len(yeni) == 0:
         return eski
-    csv_ekle(yol, yeni)
     hepsi = Bars.satirlardan(np.vstack([eski.satirlar(), yeni.satirlar()]))
-    _onbellege_koy(yol, hepsi)
+    k = _ONBELLEK.get(yol)
+    bekleyen = (k["bekleyen"] if k else 0) + len(yeni)
+    if (k is None or adim >= 1_800_000 or bekleyen >= YAZ_BEKLET_MUM
+            or time.time() - k["son_yazim"] >= YAZ_BEKLET_SN):
+        i = len(hepsi) - bekleyen
+        csv_ekle(yol, Bars(hepsi.ts[i:], hepsi.o[i:], hepsi.h[i:], hepsi.l[i:], hepsi.c[i:], hepsi.v[i:]))
+        _onbellege_koy(yol, hepsi)
+    else:                       # kisa aralik: her mumda dosyaya yazma, bellekte tut
+        k["bars"], k["bekleyen"] = hepsi, bekleyen
     return hepsi
 
 

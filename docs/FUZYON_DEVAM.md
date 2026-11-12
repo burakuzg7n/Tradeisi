@@ -111,8 +111,21 @@ Burak'ın isteği: aralığı tek tek ayarlamak ve cmd penceresi olmasın; her �
 - [x] 20. Panel v2: aralık seçici, canlı/backtest, ayarlar (takip aç/kapa, backtest çalıştır, durdur)
 - [x] 21. Telegram: panelden bağlama, test mesajı, aralık başına bildirim, `/durum` komutu
 - [x] 22. Penceresiz başlatma (`Fuzyon.vbs`), isteğe bağlı Windows açılışında başlatma
-- [ ] 23. Bulut: `python -m fusion bulut` + GitHub Actions zamanlanmış iş (PC kapalıyken 4h/1h sinyali)
+- [x] 23. Bulut: `python -m fusion bulut` + GitHub Actions zamanlanmış iş (PC kapalıyken 4h/1h sinyali)
 - [ ] 24. Testler, kılavuz, Burak'ın klasörüne eşitleme + sha256 doğrulama
+
+- 4. tur notları:
+  - Bulut işi GitHub'da gerçekten denendi (12 Kas 17:34 UTC, dal üzerinde): GitHub sunucusu Binance'ten
+    veriyi indirdi, 4h: 181 mum, lider `ortalamaya_donus` 1022,34 — Burak'ın bilgisayarındaki ekranla
+    aynı sayı (farklı makine, aynı sonuç). İlk çalışma 4 dk (indirme), sonrakiler önbellekten.
+    Deneme tetikleyicisi kaldırıldı; zamanlanmış iş yalnız `main`'de çalışır → PR #24 birleşmeli +
+    iki gizli değer (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) Burak tarafından girilmeli.
+  - Kısa aralıkta CSV her mumda yazılmıyor (60 mum ya da 30 dk'da bir; kapanışta kalanlar yazılır):
+    OneDrive'a sürekli yükleme olmasın diye.
+  - 5m geçmişi 300 güne çıkarıldı (10m aynı dosyayı kullanıyor).
+  - Servis hazır olunca backtest'i kendisi çalıştırır (yoksa / coin listesi farklıysa / 24 saatten eskiyse).
+  - Denenmedi: Windows'ta `Fuzyon.vbs` ile gizli başlatma, "Windows açılışında başlat", gerçek Telegram
+    (sahte Telegram API ile sınandı).
 
 ## Sonraki olası işler (istek gelirse)
 - Burak'ın ilk Windows çalıştırmasından gelen hata/çıktıya göre düzeltme

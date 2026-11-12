@@ -8,9 +8,6 @@ on:
   schedule:
     - cron: "4,34 * * * *"     # saatte iki kez (UTC); GitHub zamanlamasi birkac dakika gecikebilir
   workflow_dispatch:
-  push:
-    branches: [claude/fuzyon]
-    paths: [".github/workflows/fuzyon-bulut.yml"]
 
 concurrency:
   group: fuzyon-bulut
