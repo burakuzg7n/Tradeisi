@@ -123,6 +123,7 @@ reponun da GPL ile yayımlanması gerekir.
 | `ajan_kurulu` | Trend %35 + momentum %25 + hacim %15 + BTC rejimi %25; net > 0,40 AL, < −0,40 SAT; oynaklık aşırıysa veto |
 | `q_ajan` | Q-öğrenme; yalnız değerlendirme başlangıcından önceki barlarla eğitilir |
 | `kural_ema_kesisim`, `kural_hacim_patlamasi` | `fusion/kurallar/` içindeki JSON kurallar |
+| `twin_range` | TradingView'daki Twin Range Filter göstergesinin (colinmck) aynı kurallarla yeniden yazımı: kapanış filtre çizgisini yukarı kesince long, aşağı kesince short (sürekli pozisyonda, dur-ve-dön); varsayılan 27/1.6 + 55/2.0; 3 ATR koruyucu stop. Oylamaya katılmaz |
 | `fuzyon` | Yön görüşü olan stratejilerin (rotasyon hariç) o anki yönlerini sayar; net ≥ 2 oyla girer, çoğunluk bozulunca çıkar |
 
 ## Kendi stratejini yazıyla ekle

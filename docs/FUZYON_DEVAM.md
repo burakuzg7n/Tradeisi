@@ -127,6 +127,35 @@ Burak'ın isteği: aralığı tek tek ayarlamak ve cmd penceresi olmasın; her �
   - Denenmedi: Windows'ta `Fuzyon.vbs` ile gizli başlatma, "Windows açılışında başlat", gerçek Telegram
     (sahte Telegram API ile sınandı).
 
+## 5. tur — Twin Range Filter (13 Kasım 2026, Burak: "incele, işe yararsa sormadan arenaya aktar")
+- [x] 25. Pine göstergesi (Twin Range Filter, colinmck, MPL-2.0) incelendi: yumuşatılmış aralık
+  filtresi + SuperTrend tipi bant; kapanış çizgiyi kesince yön değiştiren, sürekli pozisyonda
+  kalan trend sistemi. Kapanmış mumda yeniden boyamaz.
+- [x] 26. `fusion/stratejiler/twin_range.py` (numpy, yeniden yazım) + kayıt (`stratejiler/__init__.py`).
+  Varsayılan parametreler (27/1.6, 55/2.0) aynen; 3 ATR koruyucu stop (boyutlama için).
+  `oy_verir = False`: füzyon oylamasına katılmaz, mevcut hesapların kaydı değişmez.
+- [x] 27. `tests/test_fusion_twin_range.py` (5 test); `test_fusion.py`deki strateji sayısı 8 → 9: Pine'ın satır satır taklidiyle aynı çizgi ve
+  sinyaller; nedensellik; AL/SAT sırası; arenada çalışma + füzyonun değişmemesi; adım adım = tek sefer.
+- Ölçüm (Burak'ın makinesi, 5 coin, tüm eldeki veri, 1.000 USDT, %1 risk; tek geçmiş yol, kapı kararı değil):
+
+| Aralık | Dönem | Maliyetli getiri | Maks. düşüş | İşlem | PF | Maliyetsiz getiri / PF |
+|---|---|---|---|---|---|---|
+| 1d | 2018-08 → 2026-11 | +%52 | %21 | 740 | 1,12 | +%68 / 1,16 |
+| 4h | 2020-01 → 2026-11 | +%146 | %50 | 3.047 | 1,06 | +%578 / 1,17 |
+| 1h | 2022-10 → 2026-11 | −%99 | %100 | 8.501 | 0,78 | +%118 / 1,04 |
+| 30m | 2024-09 → 2026-11 | −%100 | %100 | 8.471 | 0,75 | +%177 / 1,05 |
+| 15m | 2020-01 → 2026-11 | −%100 | %100 | 9.631 | 0,83 | +%2167 / 1,02 |
+
+  4h yıllar (maliyetli): 2020 +30, 2021 +1, 2022 −9, 2023 +30, 2024 +83, 2025 +29, 2026 −32.
+  Aynı koşuda `kirilim` 4h: +%144, düşüş %29, PF 1,15; 1d: +%105, düşüş %16, PF 1,59.
+  Okuma: ham avantaj ince (maliyetsiz PF 1,02–1,17), kazanma oranı ~%35; sık yön değiştirdiği için
+  1 saat ve altında maliyet avantajın tamamını yiyor. 4h/1d'de artıda ama `kirilim`den iyi değil.
+  Bu yüzden oylamaya alınmadı; arenada kâğıt hesapla yarışıyor.
+- Burak'tan beklenen: panelden "Servisi durdur" → `Fuzyon.vbs` yeniden aç (çalışan servis yeni
+  stratejiyi ancak yeniden başlayınca yükler; canlı hesaplar aynı başlangıçtan yeniden oynatılır,
+  eski sinyaller tekrar gönderilmez).
+- Hem OneDrive kopyası hem repo (`claude/fuzyon` dalı, PR #24) güncellendi.
+
 ## Sonraki olası işler (istek gelirse)
 - Burak'ın ilk Windows çalıştırmasından gelen hata/çıktıya göre düzeltme
 - Pine derleme hatası çıkarsa düzeltme

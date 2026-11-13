@@ -6,10 +6,11 @@ from .kurul import AjanKurulu
 from .oylama import FuzyonOylama
 from .qajan import QAjan
 from .rotasyon import OranRotasyon
+from .twin_range import TwinRange
 
 
 def hepsi(ayar: dict, kural_klasoru: str | None = None) -> list:
-    liste = [Kirilim(), OrtalamayaDonus(), OranRotasyon(), AjanKurulu(), QAjan()]
+    liste = [Kirilim(), OrtalamayaDonus(), OranRotasyon(), AjanKurulu(), QAjan(), TwinRange()]
     liste += kurallari_yukle(kural_klasoru)
     secim = ayar.get("stratejiler", "hepsi")
     if isinstance(secim, list) and secim:

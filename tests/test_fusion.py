@@ -489,7 +489,7 @@ def test_komutlar_sahte_binance(tmp_path, monkeypatch, capsys):
     cikti = capsys.readouterr().out
     assert "4800 mum" in cikti and "fuzyon" in cikti and "maliyet öncesi" in cikti
     d = json.load(open(tmp_path / "out" / "1h" / "durum_backtest.json", encoding="utf-8"))
-    assert d["aralik"] == "1h" and d["bar_sayisi"] == 60 * 24 + 1 and len(d["tablo"]) == 8
+    assert d["aralik"] == "1h" and d["bar_sayisi"] == 60 * 24 + 1 and len(d["tablo"]) == 9
 
 
 # ----------------------------------------------------- kisa araliklar / scalp (12 Kas, 3. tur)
